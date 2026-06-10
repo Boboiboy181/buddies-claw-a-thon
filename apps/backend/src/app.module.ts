@@ -14,6 +14,7 @@ import { ReportsModule } from './reports/reports.module';
 import { StorageModule } from './storage/storage.module';
 import { QueueModule } from './queue/queue.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     StorageModule,
     QueueModule,
     DashboardModule,
+    GatewayModule,
   ],
 })
 export class AppModule {}
