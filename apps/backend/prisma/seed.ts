@@ -1,7 +1,7 @@
-import { PrismaClient, JobStatus, QuestionSetStatus, QuestionCategory, InterviewStatus, InterviewState } from '@prisma/client';
+import { PrismaClient, $Enums } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import * as bcrypt from 'bcrypt';
+import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -55,7 +55,7 @@ Nice to have:
 - Knowledge of performance optimization
 - Open-source contributions`,
       requirements: ['React', 'TypeScript', 'State Management', 'REST APIs', 'WebSocket'],
-      status: JobStatus.ACTIVE,
+      status: $Enums.JobStatus.ACTIVE,
       createdBy: hr.id,
     },
   });
@@ -70,14 +70,14 @@ Nice to have:
       jobId: job.id,
       name: 'Senior FE Interview Set v1',
       version: 1,
-      status: QuestionSetStatus.ACTIVE,
+      status: $Enums.QuestionSetStatus.ACTIVE,
       createdBy: hr.id,
       questions: {
         create: [
           {
             order: 1,
             text: 'Bạn có thể giới thiệu ngắn gọn về bản thân và kinh nghiệm làm việc với React không?',
-            category: QuestionCategory.SCREENING,
+            category: $Enums.QuestionCategory.SCREENING,
             expectedSignals: ['React experience', 'Communication', 'Self-awareness'],
             evaluationCriteria: ['Clear communication', 'Relevant experience', 'Conciseness'],
             maxDurationSeconds: 120,
@@ -86,7 +86,7 @@ Nice to have:
           {
             order: 2,
             text: 'Bạn đã từng xử lý vấn đề performance trong React chưa? Hãy mô tả cách bạn debug và tối ưu?',
-            category: QuestionCategory.TECHNICAL,
+            category: $Enums.QuestionCategory.TECHNICAL,
             expectedSignals: ['React.memo', 'useMemo', 'useCallback', 'profiler', 'lazy loading'],
             evaluationCriteria: ['Depth of knowledge', 'Real examples', 'Systematic thinking'],
             maxDurationSeconds: 180,
@@ -95,7 +95,7 @@ Nice to have:
           {
             order: 3,
             text: 'Kể về một dự án frontend bạn tự hào nhất. Bạn đã giải quyết những thách thức gì?',
-            category: QuestionCategory.EXPERIENCE,
+            category: $Enums.QuestionCategory.EXPERIENCE,
             expectedSignals: ['Project ownership', 'Problem solving', 'Technical depth', 'Impact'],
             evaluationCriteria: ['Specificity', 'Role clarity', 'Challenge complexity', 'Outcome'],
             maxDurationSeconds: 180,
@@ -104,7 +104,7 @@ Nice to have:
           {
             order: 4,
             text: 'Khi có conflict về technical decision với team, bạn xử lý như thế nào?',
-            category: QuestionCategory.BEHAVIORAL,
+            category: $Enums.QuestionCategory.BEHAVIORAL,
             expectedSignals: ['Communication', 'Collaboration', 'Pragmatism', 'Leadership'],
             evaluationCriteria: ['Listening skills', 'Evidence-based reasoning', 'Constructive approach'],
             maxDurationSeconds: 150,
@@ -113,7 +113,7 @@ Nice to have:
           {
             order: 5,
             text: 'Điều gì khiến bạn muốn ứng tuyển vào vị trí này tại công ty chúng tôi?',
-            category: QuestionCategory.MOTIVATION,
+            category: $Enums.QuestionCategory.MOTIVATION,
             expectedSignals: ['Research about company', 'Career alignment', 'Genuine interest'],
             evaluationCriteria: ['Specificity', 'Authenticity', 'Cultural fit signals'],
             maxDurationSeconds: 120,
@@ -185,8 +185,8 @@ Bachelor of Information Technology - UIT (2014-2018)`,
       jobId: job.id,
       questionSetId: qs.id,
       questionSetSnapshotJson: [],
-      status: InterviewStatus.CREATED,
-      state: InterviewState.INIT,
+      status: $Enums.InterviewStatus.CREATED,
+      state: $Enums.InterviewState.INIT,
       accessToken: uuidv4(),
       createdBy: hr.id,
     },
@@ -201,8 +201,8 @@ Bachelor of Information Technology - UIT (2014-2018)`,
       jobId: job.id,
       questionSetId: qs.id,
       questionSetSnapshotJson: [],
-      status: InterviewStatus.CREATED,
-      state: InterviewState.INIT,
+      status: $Enums.InterviewStatus.CREATED,
+      state: $Enums.InterviewState.INIT,
       accessToken: uuidv4(),
       createdBy: hr.id,
     },
