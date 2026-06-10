@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+out
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Turbo cache
+.turbo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode
+.idea
+*.swp
+
+# Test coverage
+coverage
+
+# pnpm lockfile from nested packages
+apps/frontend/package-lock.json
+apps/backend/package-lock.json
