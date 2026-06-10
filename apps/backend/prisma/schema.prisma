@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+model HrUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("hr")
+  createdAt DateTime @default(now())
+
+  interviews Interview[]
+
+  @@map("hr_users")
+}
+
+// ─── Candidate ───────────────────────────────────────────────────────────────
+
+model Candidate {
+  id            String   @id @default(uuid())
+  fullName      String
+  email         String   @unique
+  phone         String?
+  cvFileUrl     String?
+  cvParsedText  String?
+  cvParsedJson  Json?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  interviews Interview[]
+
+  @@map("candidates")
+}
+
+// ─── Job ─────────────────────────────────────────────────────────────────────
+
+model Job {
+  id             String    @id @default(uuid())
+  title          String
+  department     String?
+  level          String?
+  location       String?
+  employmentType String?
+  jdRawText      String
+  jdParsedJson   Json?
+  requirements   String[]
+  rubricJson     Json?
+  status         JobStatus @default(DRAFT)
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  questionSets QuestionSet[]
+  interviews   Interview[]
+
+  @@map("jobs")
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+// ─── Question Set ─────────────────────────────────────────────────────────────
+
+model QuestionSet {
+  id                  String            @id @default(uuid())
+  jobId               String
+  name                String
+  version             Int               @default(1)
+  status              QuestionSetStatus @default(DRAFT)
+  generatedFromJdHash String?
+  createdBy           String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  job       Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  questions QuestionBankItem[]
+  interviews Interview[]
+
+  @@map("question_sets")
+}
+
+enum QuestionSetStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model QuestionBankItem {
+  id                 String           @id @default(uuid())
+  questionSetId      String
+  order              Int
+  text               String
+  category           QuestionCategory @default(CUSTOM)
+  expectedSignals    String[]
+  evaluationCriteria String[]
+  maxDurationSeconds Int              @default(120)
+  isRequired         Boolean          @default(true)
+  followUpStrategy   String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  questionSet QuestionSet @relation(fields: [questionSetId], references: [id], onDelete: Cascade)
+
+  @@map("question_bank_items")
+}
+
+enum QuestionCategory {
+  SCREENING
+  MOTIVATION
+  EXPERIENCE
+  BEHAVIORAL
+  TECHNICAL
+  CULTURE_FIT
+  SALARY
+  CUSTOM
+}
+
+// ─── Interview ────────────────────────────────────────────────────────────────
+
+model Interview {
+  id                      String          @id @default(uuid())
+  candidateId             String
+  jobId                   String
+  questionSetId           String?
+  questionSetSnapshotJson Json?
+  status                  InterviewStatus @default(CREATED)
+  state                   InterviewState  @default(INIT)
+  accessToken             String          @unique
+  dailyRoomName           String?
+  dailyRoomUrl            String?
+  recordingId             String?
+  recordingUrl            String?
+  currentQuestionIndex    Int             @default(0)
+  consentAcceptedAt       DateTime?
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  createdBy               String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  candidate   Candidate    @relation(fields: [candidateId], references: [id])
+  job         Job          @relation(fields: [jobId], references: [id])
+  questionSet QuestionSet? @relation(fields: [questionSetId], references: [id])
+  createdByHr HrUser?      @relation(fields: [createdBy], references: [id])
+  questions   InterviewQuestion[]
+  answers     InterviewAnswer[]
+  report      InterviewReport?
+  auditLogs   AuditLog[]
+
+  @@map("interviews")
+}
+
+enum InterviewStatus {
+  CREATED
+  INVITED
+  CONSENT_ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  RECORDING_PROCESSING
+  TRANSCRIPT_PROCESSING
+  REPORT_GENERATING
+  REPORT_READY
+  FAILED
+}
+
+enum InterviewState {
+  INIT
+  CONSENT_PENDING
+  READY_CHECK
+  AGENT_GREETING
+  ASKING_QUESTION
+  LISTENING_ANSWER
+  PROCESSING_ANSWER
+  AGENT_RESPONSE
+  NEXT_QUESTION
+  COMPLETED
+  REPORT_GENERATING
+  REPORT_READY
+  FAILED
+}
+
+model InterviewQuestion {
+  id                       String   @id @default(uuid())
+  interviewId              String
+  sourceQuestionBankItemId String?
+  order                    Int
+  text                     String
+  category                 String?
+  expectedSignals          String[]
+  evaluationCriteria       String[]
+  maxDurationSeconds       Int      @default(120)
+  isRequired               Boolean  @default(true)
+  ttsAudioUrl              String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  interview Interview        @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  answer    InterviewAnswer?
+
+  @@map("interview_questions")
+}
+
+model InterviewAnswer {
+  id              String   @id @default(uuid())
+  interviewId     String
+  questionId      String   @unique
+  answerAudioUrl  String?
+  answerVideoUrl  String?
+  transcript      String?
+  durationSeconds Int?
+  analysisJson    Json?
+  createdAt       DateTime @default(now())
+
+  interview Interview         @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  question  InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("interview_answers")
+}
+
+model InterviewReport {
+  id                   String   @id @default(uuid())
+  interviewId          String   @unique
+  summary              String?
+  qaAnalysisJson       Json?
+  cvMatchAnalysisJson  Json?
+  jdFitAnalysisJson    Json?
+  audioReviewSignalsJson Json?
+  videoReviewSignalsJson Json?
+  rubricScoresJson     Json?
+  recommendation       Json?
+  riskFlagsJson        Json?
+  createdAt            DateTime @default(now())
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@map("interview_reports")
+}
+
+// ─── Audit ────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  action       String
+  resourceType String
+  resourceId   String
+  userId       String?
+  interviewId  String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  interview Interview? @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}

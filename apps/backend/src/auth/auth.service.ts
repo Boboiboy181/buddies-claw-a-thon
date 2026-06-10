@@ -1,28 +1,25 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { HrUser } from './hr-user.entity';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(HrUser) private userRepo: Repository<HrUser>,
+    private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
 
   async register(email: string, password: string, name: string) {
-    const existing = await this.userRepo.findOne({ where: { email } });
+    const existing = await this.prisma.hrUser.findUnique({ where: { email } });
     if (existing) throw new ConflictException('Email already registered');
     const hashed = await bcrypt.hash(password, 10);
-    const user = this.userRepo.create({ email, password: hashed, name });
-    await this.userRepo.save(user);
+    const user = await this.prisma.hrUser.create({ data: { email, password: hashed, name } });
     return { id: user.id, email: user.email, name: user.name };
   }
 
   async login(email: string, password: string) {
-    const user = await this.userRepo.findOne({ where: { email } });
+    const user = await this.prisma.hrUser.findUnique({ where: { email } });
     if (!user || !(await bcrypt.compare(password, user.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -31,6 +28,6 @@ export class AuthService {
   }
 
   async findById(id: string) {
-    return this.userRepo.findOne({ where: { id } });
+    return this.prisma.hrUser.findUnique({ where: { id } });
   }
 }

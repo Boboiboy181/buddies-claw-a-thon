@@ -4,7 +4,6 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-# Copy workspace manifests first for layer caching
 COPY package.json pnpm-workspace.yaml ./
 COPY apps/backend/package.json ./apps/backend/package.json
 
@@ -13,7 +12,7 @@ RUN pnpm install --frozen-lockfile --filter backend
 COPY apps/backend ./apps/backend
 
 WORKDIR /app/apps/backend
-RUN pnpm build
+RUN pnpm prisma:generate && pnpm build
 
 # ---- Production stage ----
 FROM node:20-alpine AS runner
@@ -27,9 +26,12 @@ COPY apps/backend/package.json ./apps/backend/package.json
 RUN pnpm install --frozen-lockfile --filter backend --prod
 
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
+COPY --from=builder /app/apps/backend/prisma ./apps/backend/prisma
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma 2>/dev/null || true
 
 WORKDIR /app/apps/backend
 
 EXPOSE 3001
 
-CMD ["node", "dist/main"]
+# Chạy migrate rồi mới start
+CMD ["sh", "-c", "pnpm prisma:deploy && node dist/main"]
