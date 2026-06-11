@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 function Table({ className, ...props }: React.ComponentProps<'table'>) {
   return (
-    <div className="relative w-full overflow-x-auto">
+    <div data-slot="table-container" className="relative w-full overflow-x-auto">
       <table data-slot="table" className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   );
@@ -32,7 +32,7 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
   return (
     <tr
       data-slot="table-row"
-      className={cn('hover:bg-muted/50 border-b transition-colors', className)}
+      className={cn('data-[state=selected]:bg-muted border-b transition-colors hover:bg-muted/50', className)}
       {...props}
     />
   );
@@ -42,14 +42,17 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
   return (
     <th
       data-slot="table-head"
-      className={cn('text-muted-foreground h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-[0.18em]', className)}
+      className={cn(
+        'text-muted-foreground h-10 px-4 text-left align-middle text-xs font-medium whitespace-nowrap uppercase tracking-[0.18em]',
+        className
+      )}
       {...props}
     />
   );
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<'td'>) {
-  return <td data-slot="table-cell" className={cn('p-4 align-middle', className)} {...props} />;
+  return <td data-slot="table-cell" className={cn('p-4 align-middle whitespace-nowrap', className)} {...props} />;
 }
 
 function TableCaption({ className, ...props }: React.ComponentProps<'caption'>) {

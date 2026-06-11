@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ArrowLeft, Copy } from 'lucide-react';
@@ -11,14 +11,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
-import { Select } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function InterviewNew() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [createdLink, setCreatedLink] = useState<string | null>(null);
-  const { register, handleSubmit, watch } = useForm<Record<string, any>>({ defaultValues: { jobId: params.get('jobId') || '' } });
+  const { register, handleSubmit, watch, control } = useForm<Record<string, any>>({ defaultValues: { jobId: params.get('jobId') || '' } });
   const jobId = watch('jobId');
 
   const { data: jobs } = useQuery({ queryKey: ['jobs'], queryFn: () => api.get('/jobs').then(r => r.data) });
@@ -111,18 +111,48 @@ export default function InterviewNew() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="jobId">Job *</Label>
-              <Select id="jobId" {...register('jobId', { required: true })}>
-              <option value="">Select job</option>
-              {jobs?.map((j: any) => <option key={j.id} value={j.id}>{j.title}</option>)}
-            </Select>
+              <Controller
+                control={control}
+                name="jobId"
+                rules={{ required: true }}
+                render={({ field }) => (
+                  <Select value={field.value || null} onValueChange={(value) => field.onChange(value ?? '')}>
+                    <SelectTrigger id="jobId">
+                      <SelectValue placeholder="Select job" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {jobs?.map((j: any) => (
+                        <SelectItem key={j.id} value={j.id}>
+                          {j.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             {qSets?.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="questionSetId">Question Set (optional, uses active set by default)</Label>
-                <Select id="questionSetId" {...register('questionSetId')}>
-                  <option value="">Use active question set</option>
-                  {qSets?.map((s: any) => <option key={s.id} value={s.id}>{s.name} (v{s.version})</option>)}
-                </Select>
+                <Controller
+                  control={control}
+                  name="questionSetId"
+                  render={({ field }) => (
+                    <Select value={field.value || null} onValueChange={(value) => field.onChange(value ?? '')}>
+                    <SelectTrigger id="questionSetId">
+                      <SelectValue placeholder="Use active question set" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Use active question set</SelectItem>
+                      {qSets?.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name} (v{s.version})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
             )}
           </CardContent>

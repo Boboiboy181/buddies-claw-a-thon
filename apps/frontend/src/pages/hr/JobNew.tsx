@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
-import { Select } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
 interface JobFormData {
@@ -24,7 +24,7 @@ interface JobFormData {
 
 export default function JobNew() {
   const navigate = useNavigate();
-  const { register, handleSubmit } = useForm<JobFormData>();
+  const { register, handleSubmit, control } = useForm<JobFormData>();
 
   const mutation = useMutation({
     mutationFn: (data: JobFormData) => api.post('/jobs', data).then(r => r.data),
@@ -68,14 +68,25 @@ export default function JobNew() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="level">Level</Label>
-              <Select id="level" {...register('level')}>
-                <option value="">Select level</option>
-                <option>Junior</option>
-                <option>Middle</option>
-                <option>Senior</option>
-                <option>Lead</option>
-                <option>Manager</option>
-              </Select>
+              <Controller
+                control={control}
+                name="level"
+                render={({ field }) => (
+                  <Select value={field.value || null} onValueChange={(value) => field.onChange(value ?? '')}>
+                    <SelectTrigger id="level">
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Not specified</SelectItem>
+                      <SelectItem value="Junior">Junior</SelectItem>
+                      <SelectItem value="Middle">Middle</SelectItem>
+                      <SelectItem value="Senior">Senior</SelectItem>
+                      <SelectItem value="Lead">Lead</SelectItem>
+                      <SelectItem value="Manager">Manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
@@ -83,13 +94,24 @@ export default function JobNew() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="employmentType">Employment Type</Label>
-              <Select id="employmentType" {...register('employmentType')}>
-                <option value="">Select type</option>
-                <option>Full-time</option>
-                <option>Part-time</option>
-                <option>Contract</option>
-                <option>Freelance</option>
-              </Select>
+              <Controller
+                control={control}
+                name="employmentType"
+                render={({ field }) => (
+                  <Select value={field.value || null} onValueChange={(value) => field.onChange(value ?? '')}>
+                    <SelectTrigger id="employmentType">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Not specified</SelectItem>
+                      <SelectItem value="Full-time">Full-time</SelectItem>
+                      <SelectItem value="Part-time">Part-time</SelectItem>
+                      <SelectItem value="Contract">Contract</SelectItem>
+                      <SelectItem value="Freelance">Freelance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </CardContent>
         </PageBlock>
