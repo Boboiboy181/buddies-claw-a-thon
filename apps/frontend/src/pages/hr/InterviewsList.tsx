@@ -6,6 +6,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageBlock } from '@/components/page-block';
+import { PageHeader } from '@/components/page-header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 function statusBadge(status: string) {
@@ -25,17 +27,17 @@ export default function InterviewsList() {
 
   return (
     <div className="space-y-8 p-8">
-      <div className="flex flex-col gap-4 rounded-[2rem] border bg-white/80 p-8 shadow-sm backdrop-blur lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="font-heading text-3xl font-semibold tracking-tight">Interviews</h1>
-          <p className="text-muted-foreground mt-2">Create sessions, monitor progress, and jump into completed reports.</p>
-        </div>
-        <Link to="/hr/interviews/new" className={buttonVariants({ size: 'lg', className: 'h-11 rounded-xl px-5' })}>
-          <Plus className="size-4" /> New Interview
-        </Link>
-      </div>
+      <PageHeader
+        title="Interviews"
+        description="Create sessions, monitor progress, and jump into completed reports."
+        actions={
+          <Link to="/hr/interviews/new" className={buttonVariants({ size: 'lg', className: 'h-11 rounded-lg px-5' })}>
+            <Plus className="size-4" /> New Interview
+          </Link>
+        }
+      />
 
-      <Card className="border-0 bg-white/90 shadow-sm">
+      <PageBlock>
         <CardHeader>
           <CardTitle>Interview Sessions</CardTitle>
         </CardHeader>
@@ -76,7 +78,7 @@ export default function InterviewsList() {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+      </PageBlock>
     </div>
   );
 }

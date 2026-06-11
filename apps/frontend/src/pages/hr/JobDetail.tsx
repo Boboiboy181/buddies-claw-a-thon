@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageBlock } from '@/components/page-block';
 
 export default function JobDetail() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -40,7 +41,7 @@ export default function JobDetail() {
         <ArrowLeft className="size-4" /> Back
       </Button>
 
-      <div className="flex flex-col gap-4 rounded-[2rem] border bg-white/80 p-8 shadow-sm backdrop-blur xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex flex-col gap-4 rounded-[2rem] border bg-white/80 p-8 backdrop-blur xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-3">
             <h1 className="font-heading text-3xl font-semibold tracking-tight">{job?.title}</h1>
@@ -60,16 +61,16 @@ export default function JobDetail() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <Card className="border-0 bg-white/90 shadow-sm">
+          <PageBlock>
             <CardHeader>
               <CardTitle>Job Description</CardTitle>
             </CardHeader>
             <CardContent>
               <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-foreground/85">{job?.jdRawText}</pre>
             </CardContent>
-          </Card>
+          </PageBlock>
 
-          <Card className="border-0 bg-white/90 shadow-sm">
+          <PageBlock>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle>Question Sets</CardTitle>
               {questionSets?.length > 0 && (
@@ -89,11 +90,11 @@ export default function JobDetail() {
                 </div>
               )) : <p className="text-sm text-muted-foreground">No question sets yet. Click "Generate Questions" to create one.</p>}
             </CardContent>
-          </Card>
+          </PageBlock>
         </div>
 
         <div className="space-y-4">
-          <Card className="border-0 bg-white/90 shadow-sm">
+          <PageBlock>
             <CardHeader>
               <CardTitle>Recent Interviews</CardTitle>
             </CardHeader>
@@ -104,7 +105,7 @@ export default function JobDetail() {
                 </Link>
               )) : <p className="text-sm text-muted-foreground">No interviews yet</p>}
             </CardContent>
-          </Card>
+          </PageBlock>
         </div>
       </div>
     </div>

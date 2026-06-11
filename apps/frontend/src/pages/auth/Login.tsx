@@ -34,7 +34,7 @@ export default function Login() {
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl items-center gap-8 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="hidden lg:block">
           <div className="max-w-xl space-y-6">
-            <span className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-sm text-muted-foreground shadow-sm backdrop-blur">
+            <span className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-sm text-muted-foreground backdrop-blur">
               <ShieldCheck className="size-4 text-primary" />
               Secure access for HR operators
             </span>
@@ -53,7 +53,7 @@ export default function Login() {
                 'Structured review summaries for recruiters',
                 'A unified dashboard for live pipeline health',
               ].map((item) => (
-                <div key={item} className="rounded-2xl border bg-background/80 p-4 shadow-sm backdrop-blur">
+                <div key={item} className="rounded-2xl border bg-background/80 p-4 backdrop-blur">
                   <p className="text-sm font-medium leading-6">{item}</p>
                 </div>
               ))}
@@ -61,9 +61,9 @@ export default function Login() {
           </div>
         </div>
 
-        <Card className="mx-auto w-full max-w-md border-0 shadow-xl shadow-primary/10">
+        <Card className="mx-auto w-full max-w-md border">
           <CardHeader className="space-y-3 pb-2">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
               <ShieldCheck className="size-5" />
             </div>
             <div className="space-y-1">

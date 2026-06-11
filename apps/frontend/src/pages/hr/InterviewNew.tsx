@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PageBlock } from '@/components/page-block';
+import { PageHeader } from '@/components/page-header';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -34,7 +36,7 @@ export default function InterviewNew() {
 
   if (createdLink) return (
     <div className="mx-auto max-w-xl p-8">
-      <Card className="border-0 bg-white/90 text-center shadow-sm">
+      <PageBlock className="text-center">
         <CardHeader className="items-center">
           <div className="flex size-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">✓</div>
           <div className="space-y-1">
@@ -64,7 +66,7 @@ export default function InterviewNew() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </PageBlock>
     </div>
   );
 
@@ -73,14 +75,13 @@ export default function InterviewNew() {
       <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-full pl-2 text-muted-foreground">
         <ArrowLeft className="size-4" /> Back
       </Button>
-      <div className="space-y-2">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Create Interview Session</h1>
-        <p className="text-muted-foreground">
-          Pair a candidate with a job and optionally lock the session to a specific question set.
-        </p>
-      </div>
+      <PageHeader
+        variant="plain"
+        title="Create Interview Session"
+        description="Pair a candidate with a job and optionally lock the session to a specific question set."
+      />
       <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-6">
-        <Card className="border-0 bg-white/90 shadow-sm">
+        <PageBlock>
           <CardHeader>
             <CardTitle>Candidate Information</CardTitle>
           </CardHeader>
@@ -102,8 +103,8 @@ export default function InterviewNew() {
               <Textarea id="candidate-cv" rows={5} {...register('candidate.cvText')} placeholder="Paste CV content..." />
             </div>
           </CardContent>
-        </Card>
-        <Card className="border-0 bg-white/90 shadow-sm">
+        </PageBlock>
+        <PageBlock>
           <CardHeader>
             <CardTitle>Job & Question Set</CardTitle>
           </CardHeader>
@@ -125,7 +126,7 @@ export default function InterviewNew() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </PageBlock>
         <Button type="submit" disabled={mutation.isPending} size="lg" className="h-12 w-full rounded-xl">
           {mutation.isPending ? 'Creating...' : 'Create Interview & Generate Link'}
         </Button>

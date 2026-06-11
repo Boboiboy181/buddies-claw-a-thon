@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageBlock } from '@/components/page-block';
+import { PageHeader } from '@/components/page-header';
 
 const CATEGORY_LABELS: Record<string, string> = {
   screening: 'Screening', motivation: 'Motivation', experience: 'Experience',
@@ -36,15 +38,16 @@ export default function JobQuestions() {
       <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-full pl-2 text-muted-foreground">
         <ArrowLeft className="size-4" /> Back
       </Button>
-      <div className="space-y-2">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Question Set</h1>
-        <p className="text-muted-foreground">Review the active interview prompts and curate the generated stack.</p>
-      </div>
+      <PageHeader
+        variant="plain"
+        title="Question Set"
+        description="Review the active interview prompts and curate the generated stack."
+      />
 
       {questions?.length ? (
         <div className="space-y-3">
           {questions.map((q: any, idx: number) => (
-            <Card key={q.id} className="border-0 bg-white/90 shadow-sm">
+            <PageBlock key={q.id}>
               <CardContent className="flex items-start gap-3 p-4">
                 <GripVertical className="mt-1 size-4 flex-shrink-0 text-muted-foreground/40" />
                 <div className="flex-1">
@@ -64,18 +67,18 @@ export default function JobQuestions() {
                   <Trash2 className="size-4" />
                 </Button>
               </CardContent>
-            </Card>
+            </PageBlock>
           ))}
         </div>
       ) : (
-        <Card className="border-dashed">
+        <PageBlock variant="dashed">
           <CardHeader>
             <CardTitle>No questions yet</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             Go back to the job detail page and generate a question set first.
           </CardContent>
-        </Card>
+        </PageBlock>
       )}
     </div>
   );

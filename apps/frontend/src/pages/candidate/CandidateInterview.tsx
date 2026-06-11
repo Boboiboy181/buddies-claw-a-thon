@@ -44,7 +44,7 @@ export default function CandidateInterview() {
   if (state === 'error') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.14),_transparent_30%),linear-gradient(180deg,_#0f172a_0%,_#111827_100%)] px-4">
-        <Card className="w-full max-w-md border-white/10 bg-white/95 text-center shadow-xl">
+        <Card className="w-full max-w-md border-white/10 bg-white/95 text-center">
           <CardHeader className="items-center">
             <div className="flex size-16 items-center justify-center rounded-full bg-red-100 text-3xl text-red-700">✗</div>
             <div className="space-y-1">
@@ -60,7 +60,7 @@ export default function CandidateInterview() {
   if (state === 'completed') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.14),_transparent_30%),linear-gradient(180deg,_#0f172a_0%,_#111827_100%)] px-4">
-        <Card className="w-full max-w-md border-white/10 bg-white/95 text-center shadow-xl">
+        <Card className="w-full max-w-md border-white/10 bg-white/95 text-center">
           <CardHeader className="items-center">
             <div className="flex size-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">✓</div>
             <div className="space-y-1">
@@ -87,9 +87,9 @@ export default function CandidateInterview() {
           {interview?.job?.title && <p className="text-slate-300">Position: {interview.job.title}</p>}
         </div>
 
-        <Card className="border-white/10 bg-white/8 text-center text-white shadow-2xl backdrop-blur">
+        <Card className="border-white/10 bg-white/8 text-center text-white backdrop-blur">
           <CardHeader className="items-center">
-            <div className="mb-2 flex size-24 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+            <div className="mb-2 flex size-24 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Mic className="size-10" />
             </div>
             <div className="space-y-2">

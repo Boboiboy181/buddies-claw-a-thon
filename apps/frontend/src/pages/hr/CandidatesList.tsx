@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageBlock } from '@/components/page-block';
+import { PageHeader } from '@/components/page-header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function CandidatesList() {
@@ -11,11 +13,11 @@ export default function CandidatesList() {
 
   return (
     <div className="space-y-8 p-8">
-      <div className="rounded-[2rem] border bg-white/80 p-8 shadow-sm backdrop-blur">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Candidates</h1>
-        <p className="text-muted-foreground mt-2">Browse all profiles and jump into each candidate's interview history.</p>
-      </div>
-      <Card className="border-0 bg-white/90 shadow-sm">
+      <PageHeader
+        title="Candidates"
+        description="Browse all profiles and jump into each candidate's interview history."
+      />
+      <PageBlock>
         <CardHeader>
           <CardTitle>Candidate Directory</CardTitle>
         </CardHeader>
@@ -41,7 +43,7 @@ export default function CandidatesList() {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+      </PageBlock>
     </div>
   );
 }

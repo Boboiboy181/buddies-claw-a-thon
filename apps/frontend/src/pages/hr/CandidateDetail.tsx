@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageBlock } from '@/components/page-block';
 
 export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,7 +18,7 @@ export default function CandidateDetail() {
       <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-full pl-2 text-muted-foreground">
         <ArrowLeft className="size-4" /> Back
       </Button>
-      <div className="flex items-center gap-4 rounded-[2rem] border bg-white/80 p-8 shadow-sm backdrop-blur">
+      <div className="flex items-center gap-4 rounded-[2rem] border bg-white/80 p-8 backdrop-blur">
         <div className="flex size-16 items-center justify-center rounded-full bg-primary/12 text-2xl font-bold text-primary">{candidate?.fullName?.[0]}</div>
         <div>
           <h1 className="font-heading text-3xl font-semibold tracking-tight">{candidate?.fullName}</h1>
@@ -27,18 +28,18 @@ export default function CandidateDetail() {
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
           {candidate?.cvParsedText && (
-            <Card className="border-0 bg-white/90 shadow-sm">
+            <PageBlock>
               <CardHeader>
                 <CardTitle>CV Content</CardTitle>
               </CardHeader>
               <CardContent>
                 <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-foreground/85">{candidate.cvParsedText}</pre>
               </CardContent>
-            </Card>
+            </PageBlock>
           )}
         </div>
         <div>
-          <Card className="border-0 bg-white/90 shadow-sm">
+          <PageBlock>
             <CardHeader>
               <CardTitle>Interviews</CardTitle>
             </CardHeader>
@@ -50,7 +51,7 @@ export default function CandidateDetail() {
                 </Link>
               )) || <p className="text-sm text-muted-foreground">No interviews</p>}
             </CardContent>
-          </Card>
+          </PageBlock>
         </div>
       </div>
     </div>

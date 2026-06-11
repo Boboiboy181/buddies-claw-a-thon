@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PageBlock } from '@/components/page-block';
+import { PageHeader } from '@/components/page-header';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -39,15 +41,14 @@ export default function JobNew() {
         <ArrowLeft className="size-4" /> Back
       </Button>
 
-      <div className="space-y-2">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Create New Job</h1>
-        <p className="text-muted-foreground">
-          Capture the hiring brief, then generate structured questions for the AI interview flow.
-        </p>
-      </div>
+      <PageHeader
+        variant="plain"
+        title="Create New Job"
+        description="Capture the hiring brief, then generate structured questions for the AI interview flow."
+      />
 
       <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-6">
-        <Card className="border-0 bg-white/90 shadow-sm">
+        <PageBlock>
           <CardHeader>
             <CardTitle>Job Details</CardTitle>
           </CardHeader>
@@ -91,9 +92,9 @@ export default function JobNew() {
               </Select>
             </div>
           </CardContent>
-        </Card>
+        </PageBlock>
 
-        <Card className="border-0 bg-white/90 shadow-sm">
+        <PageBlock>
           <CardHeader>
             <CardTitle>Job Description *</CardTitle>
           </CardHeader>
@@ -105,7 +106,7 @@ export default function JobNew() {
               placeholder="Paste full job description here..."
             />
           </CardContent>
-        </Card>
+        </PageBlock>
 
         <Button type="submit" disabled={mutation.isPending} size="lg" className="h-12 w-full rounded-xl">
           {mutation.isPending ? 'Creating...' : 'Create Job & Generate Questions'}

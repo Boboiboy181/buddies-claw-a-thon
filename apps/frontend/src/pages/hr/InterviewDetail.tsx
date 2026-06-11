@@ -6,15 +6,16 @@ import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageBlock } from '@/components/page-block';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Card className="mb-4 border-0 bg-white/90 shadow-sm">
+    <PageBlock className="mb-4">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>{children}</CardContent>
-    </Card>
+    </PageBlock>
   );
 }
 
@@ -34,7 +35,7 @@ export default function InterviewDetail() {
 
       {interview && (
         <>
-          <div className="flex flex-col gap-4 rounded-[2rem] border bg-white/80 p-8 shadow-sm backdrop-blur xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex flex-col gap-4 rounded-[2rem] border bg-white/80 p-8 backdrop-blur xl:flex-row xl:items-start xl:justify-between">
             <div>
               <h1 className="font-heading mb-1 text-3xl font-semibold tracking-tight">{interview.candidate?.fullName}</h1>
               <p className="text-muted-foreground">{interview.job?.title}</p>
@@ -107,7 +108,7 @@ export default function InterviewDetail() {
             </div>
 
             <div className="space-y-4">
-              <Card className="border-0 bg-white/90 shadow-sm">
+              <PageBlock>
                 <CardHeader>
                   <CardTitle>Details</CardTitle>
                 </CardHeader>
@@ -119,10 +120,10 @@ export default function InterviewDetail() {
                     {interview.endedAt && <div><dt className="text-muted-foreground">Ended</dt><dd className="font-medium">{new Date(interview.endedAt).toLocaleString()}</dd></div>}
                   </dl>
                 </CardContent>
-              </Card>
+              </PageBlock>
 
               {report?.rubricScoresJson && (
-                <Card className="border-0 bg-white/90 shadow-sm">
+                <PageBlock>
                   <CardHeader>
                     <CardTitle>Rubric Scores</CardTitle>
                   </CardHeader>
@@ -134,11 +135,11 @@ export default function InterviewDetail() {
                       </div>
                     ))}
                   </CardContent>
-                </Card>
+                </PageBlock>
               )}
 
               {report?.audioReviewSignals && (
-                <Card className="border-0 bg-white/90 shadow-sm">
+                <PageBlock>
                   <CardHeader>
                     <CardTitle>Non-verbal & Audio Review Signals</CardTitle>
                   </CardHeader>
@@ -149,7 +150,7 @@ export default function InterviewDetail() {
                       <div><dt className="text-muted-foreground">Total Duration</dt><dd className="font-medium">{report.audioReviewSignals.speakingDurationSeconds}s</dd></div>
                     </dl>
                   </CardContent>
-                </Card>
+                </PageBlock>
               )}
             </div>
           </div>
