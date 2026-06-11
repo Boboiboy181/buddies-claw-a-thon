@@ -1,20 +1,16 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { $Enums } from '@prisma/client';
-import OpenAI from 'openai';
+import { LlmService } from '../llm/llm.service';
 
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
-  private openai: OpenAI;
 
   constructor(
     private prisma: PrismaService,
-    private config: ConfigService,
-  ) {
-    this.openai = new OpenAI({ apiKey: config.get('OPENAI_API_KEY') });
-  }
+    private readonly llm: LlmService,
+  ) {}
 
   async findByInterview(interviewId: string) {
     return this.prisma.interviewReport.findUnique({ where: { interviewId } });
@@ -108,17 +104,11 @@ Return JSON with this structure:
   }
 }`;
 
-      const response = await this.openai.chat.completions.create({
-        model: this.config.get('OPENAI_MODEL', 'gpt-4o'),
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
+      const analysis = await this.llm.generateJson<any>({
+        systemPrompt,
+        userPrompt,
         temperature: 0.3,
       });
-
-      const analysis = JSON.parse(response.choices[0].message.content);
 
       const report = await this.prisma.interviewReport.upsert({
         where: { interviewId },

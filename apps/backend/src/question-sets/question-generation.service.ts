@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
+import { LlmService } from '../llm/llm.service';
 
 export interface GeneratedQuestion {
   order: number;
@@ -22,11 +21,8 @@ export interface GeneratedQuestionSet {
 @Injectable()
 export class QuestionGenerationService {
   private readonly logger = new Logger(QuestionGenerationService.name);
-  private openai: OpenAI;
 
-  constructor(private config: ConfigService) {
-    this.openai = new OpenAI({ apiKey: config.get('OPENAI_API_KEY') });
-  }
+  constructor(private readonly llm: LlmService) {}
 
   async generateFromJd(params: {
     jdRawText: string;
@@ -77,18 +73,11 @@ Return JSON matching this schema:
 }`;
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: this.config.get('OPENAI_MODEL', 'gpt-4o'),
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
+      return await this.llm.generateJson<GeneratedQuestionSet>({
+        systemPrompt,
+        userPrompt,
         temperature: 0.7,
       });
-
-      const content = response.choices[0].message.content;
-      return JSON.parse(content) as GeneratedQuestionSet;
     } catch (error) {
       this.logger.error('Failed to generate questions', error);
       throw error;
