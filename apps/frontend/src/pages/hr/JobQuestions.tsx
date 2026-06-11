@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ArrowLeft, Trash2, GripVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const CATEGORY_LABELS: Record<string, string> = {
   screening: 'Screening', motivation: 'Motivation', experience: 'Experience',
@@ -29,37 +32,51 @@ export default function JobQuestions() {
   });
 
   return (
-    <div className="p-8 max-w-3xl">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6 text-sm"><ArrowLeft className="w-4 h-4" /> Back</button>
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Question Set</h1>
+    <div className="mx-auto max-w-4xl space-y-6 p-8">
+      <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-full pl-2 text-muted-foreground">
+        <ArrowLeft className="size-4" /> Back
+      </Button>
+      <div className="space-y-2">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Question Set</h1>
+        <p className="text-muted-foreground">Review the active interview prompts and curate the generated stack.</p>
+      </div>
 
       {questions?.length ? (
         <div className="space-y-3">
           {questions.map((q: any, idx: number) => (
-            <div key={q.id} className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-start gap-3">
-                <GripVertical className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+            <Card key={q.id} className="border-0 bg-white/90 shadow-sm">
+              <CardContent className="flex items-start gap-3 p-4">
+                <GripVertical className="mt-1 size-4 flex-shrink-0 text-muted-foreground/40" />
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-semibold text-gray-400">Q{idx + 1}</span>
-                    <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">{CATEGORY_LABELS[q.category] || q.category}</span>
-                    {q.isRequired && <span className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full">Required</span>}
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Q{idx + 1}</span>
+                    <Badge variant="info">{CATEGORY_LABELS[q.category] || q.category}</Badge>
+                    {q.isRequired && <Badge variant="destructive">Required</Badge>}
                   </div>
-                  <p className="text-sm text-gray-900">{q.text}</p>
+                  <p className="text-sm leading-6 text-foreground">{q.text}</p>
                   {q.expectedSignals?.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {q.expectedSignals.map((s: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">{s}</span>)}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {q.expectedSignals.map((s: string, i: number) => <Badge key={i} variant="secondary">{s}</Badge>)}
                     </div>
                   )}
                 </div>
-                <button onClick={() => deleteQ.mutate(q.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+                <Button onClick={() => deleteQ.mutate(q.id)} variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground hover:text-red-600">
+                  <Trash2 className="size-4" />
+                </Button>
+              </CardContent>
+            </Card>
           ))}
         </div>
-      ) : <p className="text-gray-400 text-center py-8">No questions yet. Go to job detail and generate a question set.</p>}
+      ) : (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle>No questions yet</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Go back to the job detail page and generate a question set first.
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

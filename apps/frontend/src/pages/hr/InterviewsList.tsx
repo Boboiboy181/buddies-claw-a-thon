@@ -3,57 +3,80 @@ import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 function statusBadge(status: string) {
-  const colors: Record<string, string> = {
-    created: 'bg-gray-100 text-gray-600', invited: 'bg-blue-50 text-blue-600',
-    in_progress: 'bg-yellow-100 text-yellow-700', completed: 'bg-green-100 text-green-700',
-    report_ready: 'bg-purple-100 text-purple-700', failed: 'bg-red-100 text-red-600',
+  const colors: Record<string, 'secondary' | 'info' | 'warning' | 'success' | 'destructive'> = {
+    created: 'secondary',
+    invited: 'info',
+    in_progress: 'warning',
+    completed: 'success',
+    report_ready: 'success',
+    failed: 'destructive',
   };
-  return colors[status] || 'bg-gray-100 text-gray-600';
+  return colors[status] || 'secondary';
 }
 
 export default function InterviewsList() {
   const { data, isLoading } = useQuery({ queryKey: ['interviews'], queryFn: () => api.get('/interviews').then(r => r.data) });
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div><h1 className="text-2xl font-bold text-gray-900">Interviews</h1><p className="text-gray-500 mt-1">Manage interview sessions</p></div>
-        <Link to="/hr/interviews/new" className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium">
-          <Plus className="w-4 h-4" /> New Interview
+    <div className="space-y-8 p-8">
+      <div className="flex flex-col gap-4 rounded-[2rem] border bg-white/80 p-8 shadow-sm backdrop-blur lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">Interviews</h1>
+          <p className="text-muted-foreground mt-2">Create sessions, monitor progress, and jump into completed reports.</p>
+        </div>
+        <Link to="/hr/interviews/new" className={buttonVariants({ size: 'lg', className: 'h-11 rounded-xl px-5' })}>
+          <Plus className="size-4" /> New Interview
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {['Candidate', 'Job', 'Status', 'Recording', 'Report', 'Created', ''].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
+      <Card className="border-0 bg-white/90 shadow-sm">
+        <CardHeader>
+          <CardTitle>Interview Sessions</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                {['Candidate', 'Job', 'Status', 'Recording', 'Report', 'Created', ''].map((h) => (
+                  <TableHead key={h}>{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
             {isLoading ? (
-              <tr><td colSpan={7} className="py-8 text-center text-gray-400">Loading...</td></tr>
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Loading...</TableCell>
+              </TableRow>
             ) : data?.map((i: any) => (
-              <tr key={i.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{i.candidate?.fullName}</td>
-                <td className="px-4 py-3 text-gray-600">{i.job?.title}</td>
-                <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(i.status)}`}>{i.status}</span></td>
-                <td className="px-4 py-3 text-gray-500">{i.recordingUrl ? '✓' : '—'}</td>
-                <td className="px-4 py-3 text-gray-500">{i.status === 'report_ready' ? '✓' : '—'}</td>
-                <td className="px-4 py-3 text-gray-400">{formatDistanceToNow(new Date(i.createdAt), { addSuffix: true })}</td>
-                <td className="px-4 py-3"><Link to={`/hr/interviews/${i.id}`} className="text-primary-600 hover:underline text-xs">View</Link></td>
-              </tr>
+              <TableRow key={i.id}>
+                <TableCell className="font-medium">{i.candidate?.fullName}</TableCell>
+                <TableCell className="text-muted-foreground">{i.job?.title}</TableCell>
+                <TableCell><Badge variant={statusBadge(i.status)}>{i.status.replace(/_/g, ' ')}</Badge></TableCell>
+                <TableCell className="text-muted-foreground">{i.recordingUrl ? '✓' : '—'}</TableCell>
+                <TableCell className="text-muted-foreground">{i.status === 'report_ready' ? '✓' : '—'}</TableCell>
+                <TableCell className="text-muted-foreground">{formatDistanceToNow(new Date(i.createdAt), { addSuffix: true })}</TableCell>
+                <TableCell>
+                  <Link to={`/hr/interviews/${i.id}`} className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'rounded-full' })}>
+                    View
+                  </Link>
+                </TableCell>
+              </TableRow>
             ))}
             {!isLoading && !data?.length && (
-              <tr><td colSpan={7} className="py-8 text-center text-gray-400">No interviews yet</td></tr>
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">No interviews yet</TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

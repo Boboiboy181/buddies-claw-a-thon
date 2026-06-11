@@ -4,6 +4,12 @@ import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface JobFormData {
   title: string;
@@ -16,7 +22,7 @@ interface JobFormData {
 
 export default function JobNew() {
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors } } = useForm<JobFormData>();
+  const { register, handleSubmit } = useForm<JobFormData>();
 
   const mutation = useMutation({
     mutationFn: (data: JobFormData) => api.post('/jobs', data).then(r => r.data),
@@ -28,58 +34,82 @@ export default function JobNew() {
   });
 
   return (
-    <div className="p-8 max-w-3xl">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6 text-sm">
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Create New Job</h1>
+    <div className="mx-auto max-w-4xl space-y-6 p-8">
+      <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-full pl-2 text-muted-foreground">
+        <ArrowLeft className="size-4" /> Back
+      </Button>
+
+      <div className="space-y-2">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Create New Job</h1>
+        <p className="text-muted-foreground">
+          Capture the hiring brief, then generate structured questions for the AI interview flow.
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900">Job Details</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Job Title *</label>
-              <input {...register('title', { required: true })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="e.g. Senior Frontend Engineer" />
+        <Card className="border-0 bg-white/90 shadow-sm">
+          <CardHeader>
+            <CardTitle>Job Details</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="title">Job Title *</Label>
+              <Input
+                id="title"
+                {...register('title', { required: true })}
+                placeholder="e.g. Senior Frontend Engineer"
+                className="h-11"
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-              <input {...register('department')} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Engineering" />
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Input id="department" {...register('department')} placeholder="Engineering" className="h-11" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
-              <select {...register('level')} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <div className="space-y-2">
+              <Label htmlFor="level">Level</Label>
+              <Select id="level" {...register('level')}>
                 <option value="">Select level</option>
-                <option>Junior</option><option>Middle</option><option>Senior</option><option>Lead</option><option>Manager</option>
-              </select>
+                <option>Junior</option>
+                <option>Middle</option>
+                <option>Senior</option>
+                <option>Lead</option>
+                <option>Manager</option>
+              </Select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-              <input {...register('location')} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ho Chi Minh City" />
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input id="location" {...register('location')} placeholder="Ho Chi Minh City" className="h-11" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
-              <select {...register('employmentType')} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <div className="space-y-2">
+              <Label htmlFor="employmentType">Employment Type</Label>
+              <Select id="employmentType" {...register('employmentType')}>
                 <option value="">Select type</option>
-                <option>Full-time</option><option>Part-time</option><option>Contract</option><option>Freelance</option>
-              </select>
+                <option>Full-time</option>
+                <option>Part-time</option>
+                <option>Contract</option>
+                <option>Freelance</option>
+              </Select>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Job Description *</h2>
-          <textarea
-            {...register('jdRawText', { required: true })}
-            rows={12}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-mono"
-            placeholder="Paste full job description here..."
-          />
-        </div>
+        <Card className="border-0 bg-white/90 shadow-sm">
+          <CardHeader>
+            <CardTitle>Job Description *</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              {...register('jdRawText', { required: true })}
+              rows={14}
+              className="font-mono text-sm"
+              placeholder="Paste full job description here..."
+            />
+          </CardContent>
+        </Card>
 
-        <button type="submit" disabled={mutation.isPending} className="w-full py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors">
+        <Button type="submit" disabled={mutation.isPending} size="lg" className="h-12 w-full rounded-xl">
           {mutation.isPending ? 'Creating...' : 'Create Job & Generate Questions'}
-        </button>
+        </Button>
       </form>
     </div>
   );
