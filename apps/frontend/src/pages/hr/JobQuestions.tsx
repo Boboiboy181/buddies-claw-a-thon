@@ -81,7 +81,7 @@ function SortableQuestion({
               {question.isRequired && <Badge variant="destructive">Required</Badge>}
             </div>
             {editing ? (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} />
                 <div className="flex gap-2">
                   <Button
@@ -92,10 +92,10 @@ function SortableQuestion({
                       setEditing(false);
                     }}
                   >
-                    <Check className="size-4" /> Save
+                    <Check data-icon="inline-start" /> Save
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => { setDraft(question.text); setEditing(false); }}>
-                    <X className="size-4" /> Cancel
+                    <X data-icon="inline-start" /> Cancel
                   </Button>
                 </div>
               </div>
@@ -111,11 +111,11 @@ function SortableQuestion({
             )}
           </div>
           <div className="flex gap-1">
-            <Button onClick={() => setEditing(true)} variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground">
-              <Pencil className="size-4" />
+            <Button onClick={() => setEditing(true)} variant="ghost" size="icon-sm" className="rounded-md text-muted-foreground">
+              <Pencil />
             </Button>
-            <Button onClick={onDelete} variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground hover:text-red-600">
-              <Trash2 className="size-4" />
+            <Button onClick={onDelete} variant="ghost" size="icon-sm" className="rounded-md text-muted-foreground hover:text-red-600">
+              <Trash2 />
             </Button>
           </div>
         </CardContent>
@@ -208,9 +208,9 @@ export default function JobQuestions() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-8">
-      <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-full pl-2 text-muted-foreground">
-        <ArrowLeft className="size-4" /> Back
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 md:p-6 xl:p-8">
+      <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-lg pl-2 text-muted-foreground">
+        <ArrowLeft data-icon="inline-start" /> Back
       </Button>
       <PageHeader
         variant="plain"
@@ -234,7 +234,7 @@ export default function JobQuestions() {
       {questions?.length ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {questions.map((q, idx) => (
                 <SortableQuestion
                   key={q.id}
@@ -261,7 +261,7 @@ export default function JobQuestions() {
       {setId && (
         adding ? (
           <PageBlock>
-            <CardContent className="space-y-3 p-4">
+            <CardContent className="flex flex-col gap-3 p-4">
               <Textarea
                 autoFocus
                 placeholder="Type the new question..."
@@ -275,17 +275,17 @@ export default function JobQuestions() {
                   disabled={!newText.trim() || addQ.isPending}
                   onClick={() => addQ.mutate(newText.trim())}
                 >
-                  <Check className="size-4" /> {addQ.isPending ? 'Adding...' : 'Add question'}
+                  <Check data-icon="inline-start" /> {addQ.isPending ? 'Adding...' : 'Add question'}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewText(''); }}>
-                  <X className="size-4" /> Cancel
+                  <X data-icon="inline-start" /> Cancel
                 </Button>
               </div>
             </CardContent>
           </PageBlock>
         ) : (
-          <Button variant="outline" className="w-full rounded-xl border-dashed" onClick={() => setAdding(true)}>
-            <Plus className="size-4" /> Add question
+          <Button variant="outline" className="h-10 w-full rounded-lg border-dashed" onClick={() => setAdding(true)}>
+            <Plus data-icon="inline-start" /> Add question
           </Button>
         )
       )}

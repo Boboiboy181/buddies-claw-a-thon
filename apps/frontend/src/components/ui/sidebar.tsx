@@ -5,9 +5,9 @@ import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const SIDEBAR_WIDTH = '16rem';
-const SIDEBAR_WIDTH_ICON = '5rem';
-const SIDEBAR_WIDTH_MOBILE = '18rem';
+const SIDEBAR_WIDTH = '14.5rem';
+const SIDEBAR_WIDTH_ICON = '4rem';
+const SIDEBAR_WIDTH_MOBILE = '16rem';
 
 type SidebarState = 'expanded' | 'collapsed';
 

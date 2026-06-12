@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
-import { Plus, Briefcase } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, MapPin, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -13,13 +13,13 @@ export default function JobsList() {
   const { data, isLoading } = useQuery({ queryKey: ['jobs'], queryFn: () => api.get('/jobs').then(r => r.data) });
 
   return (
-    <div className="space-y-8 p-8">
+    <div className="flex flex-col gap-6 p-4 md:p-6 xl:p-8">
       <PageHeader
         title="Jobs"
         description="Manage job descriptions, hiring briefs, and reusable question sets."
         actions={
-          <Link to="/hr/jobs/new" className={buttonVariants({ size: 'lg', className: 'h-11 rounded-lg px-5' })}>
-            <Plus className="size-4" /> New Job
+          <Link to="/hr/jobs/new" className={buttonVariants({ size: 'lg', className: 'h-10 rounded-lg px-4 shadow-sm shadow-primary/15' })}>
+            <Plus data-icon="inline-start" /> New job
           </Link>
         }
       />
@@ -29,40 +29,60 @@ export default function JobsList() {
           <CardContent className="py-12 text-center text-sm text-muted-foreground">Loading jobs...</CardContent>
         </PageBlock>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {data?.map((job: any) => (
-            <Link key={job.id} to={`/hr/jobs/${job.id}`}>
-              <PageBlock className="bg-white/90 transition-all hover:-translate-y-0.5">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
-                        <Briefcase className="size-5" />
+            <Link key={job.id} to={`/hr/jobs/${job.id}`} className="group">
+              <PageBlock className="transition-all hover:border-primary/30 hover:shadow-md hover:shadow-slate-950/5">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex min-w-0 items-start gap-4">
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <BriefcaseBusiness />
                       </div>
-                      <div>
-                        <h3 className="font-semibold">{job.title}</h3>
-                        <p className="text-muted-foreground mt-1 text-sm">
-                          {[job.department, job.level, job.location].filter(Boolean).join(' · ')}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-base font-semibold">{job.title}</h3>
+                          <Badge variant={jobStatusVariant(job.status)}>{job.status}</Badge>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {[job.department, job.level].filter(Boolean).join(' · ') || 'No department assigned'}
                         </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          {job.location ? (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPin />
+                              {job.location}
+                            </span>
+                          ) : null}
+                          <span>Created {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}</span>
+                        </div>
                       </div>
                     </div>
-                    <Badge variant={jobStatusVariant(job.status)}>{job.status}</Badge>
+                    <div className="flex items-center justify-between gap-3 md:justify-end">
+                      <span className="text-xs font-medium text-muted-foreground">Open brief</span>
+                      <div className="flex size-9 items-center justify-center rounded-md border bg-background text-muted-foreground transition group-hover:border-primary/30 group-hover:text-primary">
+                        <ArrowRight />
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-muted-foreground mt-4 text-sm">
-                    Created {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
-                  </p>
                 </CardContent>
               </PageBlock>
             </Link>
           ))}
           {!data?.length && (
             <PageBlock variant="transparent">
-              <CardHeader className="items-center text-center">
-                <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-                  <Briefcase className="size-6 text-muted-foreground" />
+              <CardHeader className="items-center gap-3 py-12 text-center">
+                <div className="flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <BriefcaseBusiness />
                 </div>
-                <CardTitle>No jobs yet</CardTitle>
-                <CardDescription>Create your first job brief to start building interview flows.</CardDescription>
+                <div className="flex flex-col gap-1">
+                  <CardTitle>No jobs yet</CardTitle>
+                  <CardDescription>Create your first job brief to start building interview flows.</CardDescription>
+                </div>
+                <Link to="/hr/jobs/new" className={buttonVariants({ className: 'mt-2 h-9 rounded-lg px-3' })}>
+                  <Plus data-icon="inline-start" />
+                  New job
+                </Link>
               </CardHeader>
             </PageBlock>
           )}

@@ -16,13 +16,13 @@ interface PageHeaderProps {
 }
 
 const variantClasses: Record<PageHeaderVariant, string> = {
-  card: 'flex flex-col gap-4 rounded-2xl border border-border bg-card p-8 shadow-sm lg:flex-row lg:items-center lg:justify-between',
-  plain: 'flex flex-col gap-4 rounded-2xl border border-border bg-card p-8 shadow-sm lg:flex-row lg:items-start lg:justify-between',
+  card: 'flex flex-col gap-4 border-b border-border/80 pb-6 lg:flex-row lg:items-end lg:justify-between',
+  plain: 'flex flex-col gap-4 border-b border-border/80 pb-6 lg:flex-row lg:items-start lg:justify-between',
 };
 
 const contentVariantClasses: Record<PageHeaderVariant, string> = {
   card: '',
-  plain: 'space-y-2',
+  plain: 'flex flex-col gap-2',
 };
 
 export function PageHeader({
@@ -38,10 +38,10 @@ export function PageHeader({
   return (
     <div className={cn(variantClasses[variant], className)}>
       <div className={cn(contentVariantClasses[variant], contentClassName)}>
-        <h1 className={cn('font-heading text-3xl font-semibold tracking-tight', titleClassName)}>{title}</h1>
-        {description ? <p className={cn('text-muted-foreground mt-2', variant === 'plain' && 'mt-0', descriptionClassName)}>{description}</p> : null}
+        <h1 className={cn('font-heading text-3xl font-semibold tracking-tight md:text-[2rem]', titleClassName)}>{title}</h1>
+        {description ? <p className={cn('text-muted-foreground mt-2 max-w-2xl leading-6', variant === 'plain' && 'mt-0', descriptionClassName)}>{description}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div> : null}
     </div>
   );
 }

@@ -28,7 +28,7 @@ function StatCard({
   note: string;
 }) {
   return (
-    <Card className="overflow-hidden border-border bg-card shadow-sm">
+    <Card className="overflow-hidden border-border/80 bg-card shadow-sm shadow-slate-950/5">
       <CardContent className="flex items-center justify-between p-5">
         <div className="space-y-2">
           <p className="text-muted-foreground text-sm">{label}</p>
@@ -45,7 +45,7 @@ function StatCard({
 
 function MetricChip({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
+    <div className="rounded-lg border border-border/80 bg-muted/45 px-4 py-3">
       <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
     </div>
@@ -98,7 +98,7 @@ export default function Dashboard() {
       label: 'Total Jobs',
       value: s.totalJobs ?? 0,
       icon: Briefcase,
-      color: 'bg-sky-100 text-sky-700',
+      color: 'bg-cyan-100 text-cyan-700',
       note: 'Open roles and archived briefs in this workspace',
     },
     {
@@ -146,9 +146,9 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-5 p-4 md:p-6 xl:p-8">
+    <div className="flex flex-col gap-5 p-4 md:p-6 xl:p-8">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.75fr)]">
-        <Card className="border-border bg-card shadow-sm">
+        <Card className="border-border/80 bg-card shadow-sm shadow-slate-950/5">
           <CardHeader className="gap-3 pb-0">
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
@@ -173,18 +173,18 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link to="/hr/interviews/new" className={buttonVariants({ size: 'lg', className: 'h-11 rounded-lg px-5' })}>
+              <Link to="/hr/interviews/new" className={buttonVariants({ size: 'lg', className: 'h-10 rounded-lg px-4 shadow-sm shadow-primary/15' })}>
                 Launch interview
-                <ArrowUpRight className="size-4" />
+                <ArrowUpRight data-icon="inline-end" />
               </Link>
-              <Link to="/hr/jobs" className={buttonVariants({ variant: 'outline', size: 'lg', className: 'h-11 rounded-lg bg-white px-5' })}>
+              <Link to="/hr/jobs" className={buttonVariants({ variant: 'outline', size: 'lg', className: 'h-10 rounded-lg bg-card px-4' })}>
                 Open jobs
               </Link>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card shadow-sm">
+        <Card className="border-border/80 bg-card shadow-sm shadow-slate-950/5">
           <CardHeader>
             <CardTitle>Pipeline status</CardTitle>
             <CardDescription>The three signals that matter most during the day.</CardDescription>
@@ -195,15 +195,15 @@ export default function Dashboard() {
             ))}
 
             <div className="grid gap-3 pt-1 sm:grid-cols-3 xl:grid-cols-1">
-              <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
+              <div className="rounded-lg border border-border/80 bg-muted/45 px-4 py-3">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">Completion rate</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">{completionRate}%</p>
               </div>
-              <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
+              <div className="rounded-lg border border-border/80 bg-muted/45 px-4 py-3">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">Active queue</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">{pendingInterviews}</p>
               </div>
-              <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
+              <div className="rounded-lg border border-border/80 bg-muted/45 px-4 py-3">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">Completed</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">{completedInterviews}</p>
               </div>
@@ -219,7 +219,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Card className="border-border bg-card shadow-sm">
+        <Card className="border-border/80 bg-card shadow-sm shadow-slate-950/5">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle>Recent Interviews</CardTitle>
@@ -235,7 +235,7 @@ export default function Dashboard() {
                 <Link
                   key={i.id}
                   to={`/hr/interviews/${i.id}`}
-                  className="flex items-center justify-between rounded-xl border border-transparent bg-muted/30 p-4 transition hover:border-border hover:bg-background"
+                  className="flex items-center justify-between rounded-lg border border-transparent bg-muted/35 p-4 transition hover:border-border hover:bg-background"
                 >
                   <div className="space-y-1">
                     <p className="text-sm font-medium">{i.candidate?.fullName}</p>
@@ -245,7 +245,7 @@ export default function Dashboard() {
                 </Link>
               ))
             ) : (
-              <div className="rounded-xl border border-dashed px-4 py-10 text-center">
+              <div className="rounded-lg border border-dashed px-4 py-10 text-center">
                 <p className="text-muted-foreground text-sm">No interviews yet</p>
               </div>
             )}
@@ -253,7 +253,7 @@ export default function Dashboard() {
         </Card>
 
         <div className="grid gap-6">
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="border-border/80 bg-card shadow-sm shadow-slate-950/5">
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle>Recent Candidates</CardTitle>
@@ -269,7 +269,7 @@ export default function Dashboard() {
                   <Link
                     key={c.id}
                     to={`/hr/candidates/${c.id}`}
-                    className="flex items-center gap-3 rounded-xl border border-transparent bg-muted/30 p-4 transition hover:border-border hover:bg-background"
+                    className="flex items-center gap-3 rounded-lg border border-transparent bg-muted/35 p-4 transition hover:border-border hover:bg-background"
                   >
                     <div className="flex size-10 items-center justify-center rounded-full bg-primary/12 text-sm font-semibold text-primary">
                       {c.fullName?.[0]}
@@ -281,14 +281,14 @@ export default function Dashboard() {
                   </Link>
                 ))
               ) : (
-                <div className="rounded-xl border border-dashed px-4 py-10 text-center">
+                <div className="rounded-lg border border-dashed px-4 py-10 text-center">
                   <p className="text-muted-foreground text-sm">No candidates yet</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="border-border/80 bg-card shadow-sm shadow-slate-950/5">
             <CardHeader>
               <CardTitle>Queue focus</CardTitle>
               <CardDescription>A quick handoff summary for what still needs attention.</CardDescription>

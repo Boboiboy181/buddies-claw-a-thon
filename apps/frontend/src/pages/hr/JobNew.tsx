@@ -36,9 +36,9 @@ export default function JobNew() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-8">
-      <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-full pl-2 text-muted-foreground">
-        <ArrowLeft className="size-4" /> Back
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 md:p-6 xl:p-8">
+      <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-lg pl-2 text-muted-foreground">
+        <ArrowLeft data-icon="inline-start" /> Back
       </Button>
 
       <PageHeader
@@ -47,13 +47,13 @@ export default function JobNew() {
         description="Capture the hiring brief, then generate structured questions for the AI interview flow."
       />
 
-      <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-6">
+      <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="flex flex-col gap-6">
         <PageBlock>
           <CardHeader>
             <CardTitle>Job Details</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2 md:col-span-2">
+            <div className="flex flex-col gap-2 md:col-span-2">
               <Label htmlFor="title">Job Title *</Label>
               <Input
                 id="title"
@@ -62,11 +62,11 @@ export default function JobNew() {
                 className="h-11"
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="department">Department</Label>
               <Input id="department" {...register('department')} placeholder="Engineering" className="h-11" />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="level">Level</Label>
               <Controller
                 control={control}
@@ -88,11 +88,11 @@ export default function JobNew() {
                 )}
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="location">Location</Label>
               <Input id="location" {...register('location')} placeholder="Ho Chi Minh City" className="h-11" />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="employmentType">Employment Type</Label>
               <Controller
                 control={control}
@@ -130,7 +130,7 @@ export default function JobNew() {
           </CardContent>
         </PageBlock>
 
-        <Button type="submit" disabled={mutation.isPending} size="lg" className="h-12 w-full rounded-xl">
+        <Button type="submit" disabled={mutation.isPending} size="lg" className="h-11 w-full rounded-lg shadow-sm shadow-primary/15">
           {mutation.isPending ? 'Creating...' : 'Create Job & Generate Questions'}
         </Button>
       </form>

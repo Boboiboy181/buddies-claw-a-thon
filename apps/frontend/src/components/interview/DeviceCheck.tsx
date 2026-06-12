@@ -56,42 +56,42 @@ export function DeviceCheck({ onReady }: Props) {
   }, []);
 
   return (
-    <Card className="w-full max-w-xl border-white/10 bg-white/95">
+    <Card className="w-full max-w-xl border-border/80 shadow-lg shadow-slate-950/5">
       <CardHeader>
         <CardTitle className="text-2xl">Kiểm tra thiết bị</CardTitle>
         <CardDescription>Hãy chắc chắn camera và micro hoạt động trước khi bắt đầu.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="flex flex-col gap-5">
         {error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
         ) : (
           <>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-900">
+            <div className="overflow-hidden rounded-lg border bg-slate-950">
               <video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full object-cover" />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-slate-700">
-                <Mic className="size-4 text-amber-600" />
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                <Mic className="text-primary" />
                 Mức âm lượng micro — hãy nói thử vài từ
                 {micOk && <span className="text-emerald-600">✓ Đã nhận tiếng</span>}
               </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+              <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-amber-500 transition-[width] duration-75"
+                  className="h-full rounded-full bg-primary transition-[width] duration-75"
                   style={{ width: `${Math.min(100, micLevel * 250)}%` }}
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-sm text-slate-700">
-              <Camera className="size-4 text-amber-600" />
+            <div className="flex items-center gap-2 rounded-lg border bg-muted/35 p-3 text-sm text-muted-foreground">
+              <Camera className="text-primary" />
               Bạn thấy hình ảnh của mình ở khung trên là camera đã sẵn sàng.
             </div>
           </>
         )}
 
-        <Button className="h-11 w-full rounded-xl" disabled={!!error || !micOk} onClick={onReady}>
+        <Button className="h-11 w-full rounded-lg" disabled={!!error || !micOk} onClick={onReady}>
           Sẵn sàng — bắt đầu phỏng vấn
         </Button>
       </CardContent>

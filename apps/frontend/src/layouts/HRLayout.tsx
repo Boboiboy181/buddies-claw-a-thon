@@ -23,9 +23,9 @@ function HeaderActions() {
       <SidebarTrigger className="hidden bg-background/90 xl:inline-flex">
         {state === 'collapsed' ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
       </SidebarTrigger>
-      <Button className="h-10 rounded-lg px-4" onClick={() => navigate('/hr/interviews/new')}>
+      <Button className="h-10 rounded-lg px-4 shadow-sm shadow-primary/15" onClick={() => navigate('/hr/interviews/new')}>
         New interview
-        <ArrowUpRight className="size-4" />
+        <ArrowUpRight data-icon="inline-end" />
       </Button>
     </div>
   );
@@ -48,25 +48,25 @@ export default function HRLayout() {
   return (
     <SidebarProvider
       defaultOpen
-      className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.08),_transparent_20%),linear-gradient(180deg,_rgba(248,250,252,1)_0%,_rgba(241,245,249,1)_100%)]"
+      className="min-h-screen bg-background"
     >
       <AppSidebar />
 
       <SidebarInset>
-        <header className="sticky top-0 z-30 border-b border-border/70 bg-white/80 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-border/80 bg-background/92 backdrop-blur-xl">
           <div
             className={cn(
-              'mx-auto flex w-full max-w-[1680px] items-center justify-between gap-4 px-4 py-4 md:px-6 xl:px-8',
+              'mx-auto flex w-full max-w-[1680px] items-center justify-between gap-4 px-4 py-3 md:px-6 xl:px-8',
               SHELL_HEADER_HEIGHT
             )}
           >
             <div className="flex min-w-0 items-center gap-3">
               <SidebarTrigger className="xl:hidden" />
               <div className="min-w-0">
-                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.22em]">HR Workspace</p>
-                <div className="mt-1 flex min-w-0 items-center gap-2">
-                  <h2 className="truncate text-lg font-semibold tracking-tight">{currentSection.label}</h2>
-                  <span className="hidden rounded-full border bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground md:inline-flex">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-[0.18em]">HR Workspace</p>
+                <div className="mt-1.5 flex min-w-0 items-center gap-2">
+                  <h2 className="truncate text-xl font-semibold tracking-tight">{currentSection.label}</h2>
+                  <span className="hidden rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground shadow-sm md:inline-flex">
                     {todayLabel}
                   </span>
                 </div>

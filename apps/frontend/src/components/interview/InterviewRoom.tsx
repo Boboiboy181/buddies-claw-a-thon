@@ -203,21 +203,21 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       {/* Agent panel */}
-      <Card className="border-white/10 bg-white/8 text-white backdrop-blur">
-        <CardContent className="flex min-h-[420px] flex-col items-center justify-center gap-6 p-8 text-center">
-          <div className="flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+      <Card className="border-border/80 shadow-lg shadow-slate-950/5">
+        <CardContent className="flex min-h-[420px] flex-col items-center justify-center gap-6 p-6 text-center md:p-8">
+          <div className="flex items-center gap-2 self-start rounded-full border bg-muted/45 px-3 py-1 text-xs text-muted-foreground">
             {progressLabel}
           </div>
 
           <div
             className={`flex size-24 items-center justify-center rounded-full transition-colors ${
               phase === 'agent_speaking'
-                ? 'animate-pulse bg-amber-500 text-white'
+                ? 'animate-pulse bg-primary text-primary-foreground'
                 : phase === 'listening'
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-white/10 text-slate-300'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-muted text-muted-foreground'
             }`}
           >
             {phase === 'processing' ? (
@@ -229,45 +229,45 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
             )}
           </div>
 
-          <p className="max-w-lg text-lg leading-8 text-slate-100">{agentText}</p>
+          <p className="max-w-lg text-lg leading-8 text-foreground">{agentText}</p>
 
           {phase === 'listening' && (
             <div className="flex w-full max-w-sm flex-col items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-emerald-300">
+              <div className="flex items-center gap-2 text-sm text-emerald-700">
                 <span className="size-2 animate-pulse rounded-full bg-red-500" />
                 Đang ghi âm — {formatTime(elapsed)}
                 {maxDurationRef.current ? ` / tối đa ${formatTime(maxDurationRef.current)}` : ''}
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-75"
+                  className="h-full rounded-full bg-emerald-500 transition-[width] duration-75"
                   style={{ width: `${Math.min(100, micLevel * 250)}%` }}
                 />
               </div>
               <Button
                 size="lg"
-                className="h-12 rounded-xl px-8"
+                className="h-11 rounded-lg px-6"
                 onClick={() => void submitAnswer()}
               >
-                <CircleStop className="mr-2 size-5" />
+                <CircleStop data-icon="inline-start" />
                 Trả lời xong
               </Button>
             </div>
           )}
 
           {phase === 'agent_speaking' && (
-            <p className="text-xs text-slate-400">Trợ lý đang nói, bạn sẽ trả lời sau khi audio kết thúc...</p>
+            <p className="text-xs text-muted-foreground">Trợ lý đang nói, bạn sẽ trả lời sau khi audio kết thúc...</p>
           )}
-          {phase === 'connecting' && <Loader2 className="size-5 animate-spin text-slate-400" />}
+          {phase === 'connecting' && <Loader2 className="animate-spin text-muted-foreground" />}
         </CardContent>
       </Card>
 
       {/* Self view */}
-      <div className="space-y-3">
-        <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+      <div className="flex flex-col gap-3">
+        <div className="overflow-hidden rounded-lg border bg-slate-950 shadow-sm">
           <video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full object-cover" />
         </div>
-        <p className="text-center text-xs text-slate-400">
+        <p className="text-center text-xs text-muted-foreground">
           Camera của bạn — buổi phỏng vấn đang được ghi lại
         </p>
       </div>
