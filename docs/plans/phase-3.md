@@ -1,6 +1,6 @@
 # Phase 3 — Interview Orchestrator + State Machine
 
-**Status:** 🔲 Todo  
+**Status:** ✅ Done  
 **Ước tính:** 1 ngày
 
 ## Mục tiêu
@@ -151,13 +151,13 @@ Backend                              Frontend (Candidate)
 
 ## Deliverables Checklist
 
-- [ ] `src/orchestrator/orchestrator.service.ts`
-- [ ] `src/orchestrator/orchestrator.controller.ts`
-- [ ] `src/orchestrator/orchestrator.module.ts`
-- [ ] Import OrchestratorModule trong `app.module.ts`
-- [ ] TTS prewarm chạy sau setup-room
-- [ ] Audio upload key convention documented
-- [ ] State transitions update DB + emit Gateway
-- [ ] Error handling: set state FAILED + emit error event
-- [ ] Greeting text có thể config qua env (VN/EN)
-- [ ] `POST /orchestrator/interviews/:id/process-answer` nhận multipart/form-data với field `audio`
+- [x] `src/orchestrator/orchestrator.service.ts`
+- [x] `src/orchestrator/orchestrator.controller.ts`
+- [x] `src/orchestrator/orchestrator.module.ts`
+- [x] Import OrchestratorModule trong `app.module.ts`
+- [x] TTS prewarm chạy sau setup-room
+- [x] Audio upload key convention documented
+- [x] State transitions update DB + emit Gateway
+- [x] Error handling: set state FAILED + emit error event
+- [x] Greeting text có thể config qua env (VN/EN) — `AGENT_GREETING_TEXT`, `AGENT_LANGUAGE`
+- [x] `POST /orchestrator/interviews/:id/process-answer` nhận multipart/form-data với field `audio`

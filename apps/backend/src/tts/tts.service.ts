@@ -1,26 +1,125 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
+import axios from 'axios';
+
+const DEFAULT_AGENTBASE_BASE_URL = 'https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1';
+const DEFAULT_GEMINI_VOICE = 'Zephyr';
 
 export type TtsVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+
+export interface TtsAudioFormat {
+  extension: 'mp3' | 'wav';
+  contentType: string;
+}
 
 @Injectable()
 export class TtsService {
   private readonly logger = new Logger(TtsService.name);
-  private openai: OpenAI;
+  private readonly provider: 'agentbase' | 'openai';
+  private readonly model: string;
+  private readonly baseUrl?: string;
+  private readonly apiKey?: string;
+  private readonly geminiVoice: string;
+  private openai?: OpenAI;
+
+  /** Output format differs by provider: AgentBase returns raw PCM (wrapped to WAV), OpenAI returns MP3. */
+  readonly audioFormat: TtsAudioFormat;
 
   constructor(private config: ConfigService) {
-    this.openai = new OpenAI({ apiKey: config.get('OPENAI_API_KEY') });
+    const agentbaseApiKey = this.readOptional('LLM_API_KEY');
+    const agentbaseModel = this.readOptional('TTS_MODEL');
+    const openAiApiKey = this.readOptional('OPENAI_API_KEY');
+
+    if (agentbaseApiKey && agentbaseModel) {
+      this.provider = 'agentbase';
+      this.apiKey = agentbaseApiKey;
+      this.baseUrl = this.config.get('LLM_BASE_URL', DEFAULT_AGENTBASE_BASE_URL).replace(/\/+$/, '');
+      this.model = agentbaseModel;
+      this.geminiVoice = this.config.get('TTS_VOICE', DEFAULT_GEMINI_VOICE);
+      this.audioFormat = { extension: 'wav', contentType: 'audio/wav' };
+      this.logger.log(`Using AgentBase TTS (/speech/tts) with model "${this.model}", voice "${this.geminiVoice}"`);
+      return;
+    }
+
+    if (!openAiApiKey) {
+      throw new Error('Missing LLM_API_KEY + TTS_MODEL for AgentBase or OPENAI_API_KEY for direct OpenAI usage');
+    }
+
+    this.provider = 'openai';
+    this.openai = new OpenAI({ apiKey: openAiApiKey });
+    this.model = this.config.get('OPENAI_TTS_MODEL', 'tts-1');
+    this.geminiVoice = DEFAULT_GEMINI_VOICE;
+    this.audioFormat = { extension: 'mp3', contentType: 'audio/mpeg' };
+    this.logger.log(`Using direct OpenAI TTS with model "${this.model}"`);
   }
 
   async synthesize(text: string, voice: TtsVoice = 'nova'): Promise<Buffer> {
-    const response = await this.openai.audio.speech.create({
-      model: 'tts-1',
+    if (this.provider === 'agentbase') {
+      return this.synthesizeAgentbase(text);
+    }
+
+    const response = await this.openai!.audio.speech.create({
+      model: this.model,
       voice,
       input: text,
       response_format: 'mp3',
     });
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
+  }
+
+  /** Gemini-native TTS route: returns base64 PCM (s16le mono), wrapped into a WAV container. */
+  private async synthesizeAgentbase(text: string): Promise<Buffer> {
+    const { data } = await axios.post(
+      `${this.baseUrl}/speech/tts`,
+      {
+        model: this.model,
+        contents: [{ role: 'user', parts: [{ text }] }],
+        generationConfig: {
+          temperature: 1,
+          responseModalities: ['audio'],
+          speech_config: {
+            voice_config: { prebuilt_voice_config: { voice_name: this.geminiVoice } },
+          },
+        },
+      },
+      { headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' } },
+    );
+
+    const part = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    if (!part?.data) {
+      throw new Error(`AgentBase TTS returned no audio: ${JSON.stringify(data).slice(0, 300)}`);
+    }
+
+    const pcm = Buffer.from(part.data, 'base64');
+    // mimeType example: "audio/L16;codec=pcm;rate=24000"
+    const sampleRate = parseInt(/rate=(\d+)/.exec(part.mimeType ?? '')?.[1] ?? '24000', 10);
+    return this.pcmToWav(pcm, sampleRate);
+  }
+
+  private pcmToWav(pcm: Buffer, sampleRate: number, channels = 1, bitsPerSample = 16): Buffer {
+    const byteRate = (sampleRate * channels * bitsPerSample) / 8;
+    const blockAlign = (channels * bitsPerSample) / 8;
+    const header = Buffer.alloc(44);
+    header.write('RIFF', 0);
+    header.writeUInt32LE(36 + pcm.length, 4);
+    header.write('WAVE', 8);
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20); // PCM
+    header.writeUInt16LE(channels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitsPerSample, 34);
+    header.write('data', 36);
+    header.writeUInt32LE(pcm.length, 40);
+    return Buffer.concat([header, pcm]);
+  }
+
+  private readOptional(key: string): string | undefined {
+    const value = this.config.get<string>(key)?.trim();
+    return value ? value : undefined;
   }
 }
