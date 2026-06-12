@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { ArrowLeft, Copy } from 'lucide-react';
+import { ArrowLeft, Copy, Send, Video, DoorOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,60 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// Statuses where the interview is still moving — poll for updates
+const POLLING_STATUSES = [
+  'IN_PROGRESS',
+  'COMPLETED',
+  'RECORDING_PROCESSING',
+  'TRANSCRIPT_PROCESSING',
+  'REPORT_GENERATING',
+];
+
 export default function InterviewDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: interview } = useQuery({ queryKey: ['interview', id], queryFn: () => api.get(`/interviews/${id}`).then(r => r.data) });
-  const { data: report } = useQuery({ queryKey: ['report', id], queryFn: () => api.get(`/interviews/${id}/report`).then(r => r.data), enabled: interview?.status === 'report_ready' });
+  const qc = useQueryClient();
+  const { data: interview } = useQuery({
+    queryKey: ['interview', id],
+    queryFn: () => api.get(`/interviews/${id}`).then(r => r.data),
+    refetchInterval: (query) => {
+      const status = String(query.state.data?.status ?? '').toUpperCase();
+      return POLLING_STATUSES.includes(status) ? 5000 : false;
+    },
+  });
+  const status = String(interview?.status ?? '').toUpperCase();
+  const { data: report } = useQuery({
+    queryKey: ['report', id],
+    queryFn: () => api.get(`/interviews/${id}/report`).then(r => r.data),
+    enabled: status === 'REPORT_READY',
+  });
+
+  const setupRoom = useMutation({
+    mutationFn: () => api.post(`/orchestrator/interviews/${id}/setup-room`),
+    onSuccess: () => {
+      toast.success('Daily room ready — TTS prewarming in background');
+      qc.invalidateQueries({ queryKey: ['interview', id] });
+    },
+    onError: () => toast.error('Failed to set up room'),
+  });
+
+  const sendInvite = useMutation({
+    mutationFn: () => api.post(`/orchestrator/interviews/${id}/invite`),
+    onSuccess: () => {
+      toast.success('Interview marked as invited');
+      qc.invalidateQueries({ queryKey: ['interview', id] });
+    },
+    onError: () => toast.error('Failed to send invite'),
+  });
+
+  const viewRecording = useMutation({
+    mutationFn: () => api.get(`/interviews/${id}/recording`).then(r => r.data),
+    onSuccess: (data) => {
+      if (data?.recordingUrl) window.open(data.recordingUrl, '_blank');
+      else toast('Recording is not available yet', { icon: '⏳' });
+    },
+    onError: () => toast.error('Recording is not available yet'),
+  });
 
   const link = interview ? `${window.location.origin}/interview/${interview.accessToken}` : '';
 
@@ -53,10 +102,33 @@ export default function InterviewDetail() {
                   <Copy className="size-4" />
                 </Button>
               </div>
-              <Badge variant={statusVariant(interview.status)} className="px-3 py-1 text-sm">
-                {interview.status.replace(/_/g, ' ')}
+              <Badge variant={statusVariant(status)} className="px-3 py-1 text-sm">
+                {status.replace(/_/g, ' ')}
               </Badge>
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {['CREATED', 'INVITED'].includes(status) && (
+              <>
+                <Button onClick={() => setupRoom.mutate()} disabled={setupRoom.isPending} variant="outline" className="rounded-xl">
+                  <DoorOpen className="size-4" />
+                  {setupRoom.isPending ? 'Setting up...' : interview.dailyRoomUrl ? 'Re-setup Room' : 'Setup Room'}
+                </Button>
+                {status === 'CREATED' && (
+                  <Button onClick={() => sendInvite.mutate()} disabled={sendInvite.isPending} className="rounded-xl">
+                    <Send className="size-4" />
+                    {sendInvite.isPending ? 'Sending...' : 'Send Invite'}
+                  </Button>
+                )}
+              </>
+            )}
+            {(interview.recordingUrl || ['COMPLETED', 'REPORT_GENERATING', 'REPORT_READY'].includes(status)) && (
+              <Button onClick={() => viewRecording.mutate()} disabled={viewRecording.isPending} variant="outline" className="rounded-xl">
+                <Video className="size-4" />
+                View Recording
+              </Button>
+            )}
           </div>
 
           <div className="grid gap-6 xl:grid-cols-3">
@@ -101,7 +173,11 @@ export default function InterviewDetail() {
               ) : (
                 <Section title="Interview Status">
                   <p className="text-muted-foreground">
-                    {interview.status === 'completed' || interview.status === 'report_generating' ? 'Report is being generated...' : 'Interview not yet completed.'}
+                    {['COMPLETED', 'REPORT_GENERATING'].includes(status)
+                      ? 'Report is being generated... This page refreshes automatically.'
+                      : status === 'IN_PROGRESS'
+                        ? 'Interview is in progress. This page refreshes automatically.'
+                        : 'Interview not yet completed.'}
                   </p>
                 </Section>
               )}
@@ -161,16 +237,20 @@ export default function InterviewDetail() {
 }
 
 function statusVariant(status: string) {
-  const map: Record<string, 'secondary' | 'warning' | 'success'> = {
-    created: 'secondary',
-    invited: 'secondary',
-    in_progress: 'warning',
-    completed: 'success',
-    report_ready: 'success',
-    report_generating: 'warning',
+  const map: Record<string, 'secondary' | 'warning' | 'success' | 'destructive'> = {
+    CREATED: 'secondary',
+    INVITED: 'secondary',
+    CONSENT_ACCEPTED: 'secondary',
+    IN_PROGRESS: 'warning',
+    COMPLETED: 'success',
+    RECORDING_PROCESSING: 'warning',
+    TRANSCRIPT_PROCESSING: 'warning',
+    REPORT_GENERATING: 'warning',
+    REPORT_READY: 'success',
+    FAILED: 'destructive',
   };
 
-  return map[status] || 'secondary';
+  return map[status.toUpperCase()] || 'secondary';
 }
 
 function recommendationVariant(decision: string) {

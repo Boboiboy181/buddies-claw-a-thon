@@ -19,7 +19,7 @@ function statusBadge(status: string) {
     report_ready: 'success',
     failed: 'destructive',
   };
-  return colors[status] || 'secondary';
+  return colors[status?.toLowerCase()] || 'secondary';
 }
 
 export default function InterviewsList() {
@@ -61,7 +61,7 @@ export default function InterviewsList() {
                 <TableCell className="text-muted-foreground">{i.job?.title}</TableCell>
                 <TableCell><Badge variant={statusBadge(i.status)}>{i.status.replace(/_/g, ' ')}</Badge></TableCell>
                 <TableCell className="text-muted-foreground">{i.recordingUrl ? '✓' : '—'}</TableCell>
-                <TableCell className="text-muted-foreground">{i.status === 'report_ready' ? '✓' : '—'}</TableCell>
+                <TableCell className="text-muted-foreground">{i.status?.toUpperCase() === 'REPORT_READY' ? '✓' : '—'}</TableCell>
                 <TableCell className="text-muted-foreground">{formatDistanceToNow(new Date(i.createdAt), { addSuffix: true })}</TableCell>
                 <TableCell>
                   <Link to={`/hr/interviews/${i.id}`} className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'rounded-full' })}>

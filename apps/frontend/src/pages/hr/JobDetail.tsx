@@ -45,7 +45,7 @@ export default function JobDetail() {
         <div>
           <div className="mb-2 flex items-center gap-3">
             <h1 className="font-heading text-3xl font-semibold tracking-tight">{job?.title}</h1>
-            <Badge variant={job?.status === 'active' ? 'success' : 'warning'}>{job?.status}</Badge>
+            <Badge variant={job?.status?.toUpperCase() === 'ACTIVE' ? 'success' : 'warning'}>{job?.status}</Badge>
           </div>
           <p className="text-muted-foreground">{[job?.department, job?.level, job?.location].filter(Boolean).join(' · ')}</p>
         </div>
@@ -86,7 +86,7 @@ export default function JobDetail() {
                     <p className="text-sm font-medium">{qs.name}</p>
                     <p className="text-muted-foreground text-xs">v{qs.version} · {qs.status}</p>
                   </div>
-                  <Badge variant={qs.status === 'active' ? 'success' : 'secondary'}>{qs.status}</Badge>
+                  <Badge variant={qs.status?.toUpperCase() === 'ACTIVE' ? 'success' : 'secondary'}>{qs.status}</Badge>
                 </div>
               )) : <p className="text-sm text-muted-foreground">No question sets yet. Click "Generate Questions" to create one.</p>}
             </CardContent>

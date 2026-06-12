@@ -67,5 +67,5 @@ function candidateInterviewStatusVariant(status: string) {
     report_ready: 'success',
   };
 
-  return map[status] || 'secondary';
+  return map[status?.toLowerCase()] || 'secondary';
 }

@@ -314,7 +314,7 @@ function statusVariant(status: string) {
     report_ready: 'success',
     failed: 'destructive',
   };
-  return map[status] || 'secondary';
+  return map[status?.toLowerCase()] || 'secondary';
 }
 
 function statusLabel(status: string) {
