@@ -78,7 +78,10 @@ export default function HRLayout() {
         </header>
 
         <div className="flex-1 overflow-auto">
-          <div className="mx-auto w-full max-w-[1680px]">
+          <div
+            key={location.pathname}
+            className="mx-auto w-full max-w-[1680px] animate-in fade-in slide-in-from-bottom-2 duration-300"
+          >
             <Outlet />
           </div>
         </div>

@@ -2,21 +2,22 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/bricolage-grotesque";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* Primary (teal) */
-  --color-primary-50: #ecfeff;
-  --color-primary-100: #cffafe;
-  --color-primary-200: #a5f3fc;
-  --color-primary-300: #67e8f9;
-  --color-primary-400: #22d3ee;
-  --color-primary-500: #06b6d4;
-  --color-primary-600: #0891b2;
-  --color-primary-700: #0e7490;
-  --color-primary-800: #155e75;
-  --color-primary-900: #164e63;
+  /* Primary (indigo) */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
 
   /* Success (green) */
   --color-success-50: #f0fdf4;
@@ -47,10 +48,16 @@
   html {
     @apply font-sans;
   }
+  h1, h2, h3 {
+    @apply font-heading tracking-tight;
+  }
+  ::selection {
+    @apply bg-primary/20;
+  }
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
+  --font-heading: 'Bricolage Grotesque Variable', 'Inter Variable', sans-serif;
   --font-sans: 'Inter Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -93,72 +100,72 @@
 }
 
 :root {
-  --background: oklch(0.985 0.004 236.499);
-  --foreground: oklch(0.19 0.025 253.51);
+  --background: oklch(0.978 0.005 286);
+  --foreground: oklch(0.21 0.03 280);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.025 253.51);
+  --card-foreground: oklch(0.21 0.03 280);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.19 0.025 253.51);
-  --primary: oklch(0.55 0.118 204.593);
-  --primary-foreground: oklch(0.985 0.004 236.499);
-  --secondary: oklch(0.957 0.009 247.878);
-  --secondary-foreground: oklch(0.266 0.038 252.235);
-  --muted: oklch(0.962 0.007 247.896);
-  --muted-foreground: oklch(0.46 0.034 253.838);
-  --accent: oklch(0.934 0.022 236.142);
-  --accent-foreground: oklch(0.28 0.048 251.219);
+  --popover-foreground: oklch(0.21 0.03 280);
+  --primary: oklch(0.51 0.22 277);
+  --primary-foreground: oklch(0.985 0.005 286);
+  --secondary: oklch(0.955 0.012 282);
+  --secondary-foreground: oklch(0.28 0.05 279);
+  --muted: oklch(0.96 0.01 284);
+  --muted-foreground: oklch(0.47 0.035 281);
+  --accent: oklch(0.935 0.028 282);
+  --accent-foreground: oklch(0.3 0.08 278);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.013 247.879);
-  --input: oklch(0.9 0.013 247.879);
-  --ring: oklch(0.64 0.104 205.02);
-  --chart-1: oklch(0.55 0.118 204.593);
-  --chart-2: oklch(0.56 0.17 276.84);
+  --border: oklch(0.9 0.014 282);
+  --input: oklch(0.9 0.014 282);
+  --ring: oklch(0.585 0.19 277);
+  --chart-1: oklch(0.51 0.22 277);
+  --chart-2: oklch(0.62 0.14 220);
   --chart-3: oklch(0.66 0.17 149.24);
   --chart-4: oklch(0.72 0.15 67.01);
   --chart-5: oklch(0.61 0.16 24.95);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.99 0.003 247.858);
-  --sidebar-foreground: oklch(0.24 0.034 253.11);
-  --sidebar-primary: oklch(0.55 0.118 204.593);
-  --sidebar-primary-foreground: oklch(0.985 0.004 236.499);
-  --sidebar-accent: oklch(0.949 0.014 242.846);
-  --sidebar-accent-foreground: oklch(0.24 0.034 253.11);
-  --sidebar-border: oklch(0.9 0.013 247.879);
-  --sidebar-ring: oklch(0.64 0.104 205.02);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.99 0.004 286);
+  --sidebar-foreground: oklch(0.26 0.035 280);
+  --sidebar-primary: oklch(0.51 0.22 277);
+  --sidebar-primary-foreground: oklch(0.985 0.005 286);
+  --sidebar-accent: oklch(0.945 0.02 282);
+  --sidebar-accent-foreground: oklch(0.26 0.035 280);
+  --sidebar-border: oklch(0.9 0.014 282);
+  --sidebar-ring: oklch(0.585 0.19 277);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.67 0.118 204.593);
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.155 0.012 282);
+  --foreground: oklch(0.985 0.003 286);
+  --card: oklch(0.205 0.015 282);
+  --card-foreground: oklch(0.985 0.003 286);
+  --popover: oklch(0.205 0.015 282);
+  --popover-foreground: oklch(0.985 0.003 286);
+  --primary: oklch(0.68 0.16 277);
+  --primary-foreground: oklch(0.145 0.01 282);
+  --secondary: oklch(0.274 0.012 282);
+  --secondary-foreground: oklch(0.985 0.003 286);
+  --muted: oklch(0.269 0.012 282);
+  --muted-foreground: oklch(0.71 0.02 283);
+  --accent: oklch(0.28 0.03 280);
+  --accent-foreground: oklch(0.985 0.003 286);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.67 0.118 204.593);
-  --chart-2: oklch(0.69 0.145 276.84);
+  --ring: oklch(0.6 0.14 277);
+  --chart-1: oklch(0.68 0.16 277);
+  --chart-2: oklch(0.7 0.12 220);
   --chart-3: oklch(0.72 0.14 149.24);
   --chart-4: oklch(0.78 0.12 67.01);
   --chart-5: oklch(0.7 0.14 24.95);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.67 0.118 204.593);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar: oklch(0.185 0.014 282);
+  --sidebar-foreground: oklch(0.985 0.003 286);
+  --sidebar-primary: oklch(0.68 0.16 277);
+  --sidebar-primary-foreground: oklch(0.145 0.01 282);
+  --sidebar-accent: oklch(0.27 0.025 280);
+  --sidebar-accent-foreground: oklch(0.985 0.003 286);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.6 0.14 277);
 }
 
 /* Print: keep only the report content (used by Print / Export PDF on InterviewDetail) */

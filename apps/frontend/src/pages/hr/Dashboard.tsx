@@ -18,24 +18,22 @@ function StatCard({
   label,
   value,
   icon: Icon,
-  color,
   note,
 }: {
   label: string;
   value: number;
   icon: LucideIcon;
-  color: string;
   note: string;
 }) {
   return (
-    <Card className="overflow-hidden border-border/80 bg-card shadow-sm shadow-slate-950/5">
+    <Card className="overflow-hidden border-border/80 bg-card shadow-sm shadow-slate-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-primary/10">
       <CardContent className="flex items-center justify-between p-5">
         <div className="space-y-2">
           <p className="text-muted-foreground text-sm">{label}</p>
-          <p className="text-3xl font-semibold tracking-tight">{value ?? 0}</p>
+          <p className="font-heading text-3xl font-semibold tracking-tight">{value ?? 0}</p>
           <p className="text-muted-foreground text-xs">{note}</p>
         </div>
-        <div className={cn('flex size-11 items-center justify-center rounded-xl', color)}>
+        <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
           <Icon className="size-5" />
         </div>
       </CardContent>
@@ -98,28 +96,24 @@ export default function Dashboard() {
       label: 'Total Jobs',
       value: s.totalJobs ?? 0,
       icon: Briefcase,
-      color: 'bg-cyan-100 text-cyan-700',
       note: 'Open roles and archived briefs in this workspace',
     },
     {
       label: 'Candidates',
       value: s.totalCandidates ?? 0,
       icon: Users,
-      color: 'bg-violet-100 text-violet-700',
       note: 'Profiles currently available for review',
     },
     {
       label: 'Interviews',
       value: totalInterviews,
       icon: CalendarDays,
-      color: 'bg-emerald-100 text-emerald-700',
       note: 'Scheduled, active, and completed sessions',
     },
     {
       label: 'Reports Ready',
       value: readyReports,
       icon: FileText,
-      color: 'bg-indigo-100 text-indigo-700',
       note: `${reportCoverage}% of completed interviews are ready to review`,
     },
   ];
@@ -141,7 +135,7 @@ export default function Dashboard() {
       label: 'Reports generated',
       value: readyReports,
       total: Math.max(completedInterviews || totalInterviews, 1),
-      tone: 'bg-indigo-500',
+      tone: 'bg-primary',
     },
   ];
 
@@ -221,7 +215,7 @@ export default function Dashboard() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Card className="border-border/80 bg-card shadow-sm shadow-slate-950/5">
           <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
+            <div className="space-y-1.5">
               <CardTitle>Recent Interviews</CardTitle>
               <CardDescription>Latest sessions across active roles and candidates.</CardDescription>
             </div>
@@ -255,7 +249,7 @@ export default function Dashboard() {
         <div className="grid gap-6">
           <Card className="border-border/80 bg-card shadow-sm shadow-slate-950/5">
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <div>
+              <div className="space-y-1.5">
                 <CardTitle>Recent Candidates</CardTitle>
                 <CardDescription>New profiles that may need review or interview scheduling.</CardDescription>
               </div>

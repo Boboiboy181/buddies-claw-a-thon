@@ -16,7 +16,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-header"
-      className={cn('flex flex-col gap-1.5 px-6 pt-6', className)}
+      className={cn('flex flex-col gap-2.5 px-6 pb-2 pt-6', className)}
       {...props}
     />
   );
@@ -26,7 +26,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-title"
-      className={cn('font-semibold leading-none tracking-tight', className)}
+      className={cn('font-heading font-semibold leading-none tracking-tight', className)}
       {...props}
     />
   );
@@ -36,7 +36,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-description"
-      className={cn('text-muted-foreground text-sm', className)}
+      className={cn('text-muted-foreground text-sm leading-relaxed', className)}
       {...props}
     />
   );

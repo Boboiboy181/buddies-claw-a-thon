@@ -56,8 +56,8 @@ function SidebarItem({
         asChild
         isActive={isActive}
         className={cn(
-          'h-9 rounded-md px-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent/70',
-          isActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+          'h-9 rounded-md px-2 text-sm font-normal text-sidebar-foreground transition-colors hover:bg-sidebar-accent/70',
+          isActive && 'bg-primary/10 font-medium text-primary hover:bg-primary/15'
         )}
       >
         <NavLink to={to} onClick={onNavigate} title={collapsed ? label : undefined}>
@@ -95,11 +95,11 @@ export function AppSidebar() {
           onClick={closeOnMobile}
           className={cn('flex w-full items-center gap-2.5 rounded-lg text-left', collapsed && 'justify-center')}
         >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-700 text-primary-foreground shadow-sm shadow-primary/30">
             <BriefcaseBusiness />
           </div>
           <div className={cn('min-w-0 flex-1', collapsed && 'hidden')}>
-            <h1 className="truncate text-sm font-semibold leading-tight text-foreground">Clawathon HR</h1>
+            <h1 className="truncate font-heading text-sm font-semibold leading-tight text-foreground">Clawathon HR</h1>
             <p className="truncate text-xs leading-tight text-sidebar-foreground/65">Workspace</p>
           </div>
           <ChevronsUpDown className={cn('text-sidebar-foreground/80', collapsed && 'hidden')} />
