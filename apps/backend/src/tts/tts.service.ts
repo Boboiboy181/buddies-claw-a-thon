@@ -69,8 +69,25 @@ export class TtsService {
     return Buffer.from(arrayBuffer);
   }
 
-  /** Gemini-native TTS route: returns base64 PCM (s16le mono), wrapped into a WAV container. */
+  /** Gemini-native TTS route: returns base64 PCM (s16le mono), wrapped into a WAV container.
+   *  Retries on 429 — the MaaS gateway rate-limits TTS bursts. */
   private async synthesizeAgentbase(text: string): Promise<Buffer> {
+    const MAX_RETRIES = 4;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.synthesizeAgentbaseOnce(text);
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status !== 429 || attempt >= MAX_RETRIES) throw err;
+        const resetHeader = parseInt(err.response?.headers?.['ratelimit-reset'] ?? '', 10);
+        const waitMs = Number.isFinite(resetHeader) ? (resetHeader + 1) * 1000 : 2000 * 2 ** attempt;
+        this.logger.warn(`TTS rate-limited (429), retry ${attempt + 1}/${MAX_RETRIES} in ${waitMs}ms`);
+        await new Promise((r) => setTimeout(r, waitMs));
+      }
+    }
+  }
+
+  private async synthesizeAgentbaseOnce(text: string): Promise<Buffer> {
     const { data } = await axios.post(
       `${this.baseUrl}/speech/tts`,
       {

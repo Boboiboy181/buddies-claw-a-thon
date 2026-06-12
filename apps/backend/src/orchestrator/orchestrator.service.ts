@@ -350,7 +350,11 @@ export class InterviewOrchestratorService {
     });
     if (questions.length === 0) return { prewarmed: 0 };
 
-    await Promise.all(questions.map((q) => this.ensureQuestionTts(interviewId, q)));
+    // Sequential on purpose: the TTS provider rate-limits bursts (429),
+    // and parallel synthesis of a whole question set trips it.
+    for (const q of questions) {
+      await this.ensureQuestionTts(interviewId, q);
+    }
     this.logger.log(`Prewarmed TTS for ${questions.length} questions of interview ${interviewId}`);
     return { prewarmed: questions.length };
   }
