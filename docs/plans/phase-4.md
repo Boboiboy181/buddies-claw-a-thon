@@ -1,7 +1,14 @@
 # Phase 4 — Frontend Integration + Real APIs
 
-**Status:** 🔲 Todo  
+**Status:** ✅ Done (2026-06-12)  
 **Ước tính:** 1.5 ngày
+
+> **Ghi chú triển khai (khác plan):**
+> - Không tách bộ hooks `src/hooks/` — các trang dùng React Query inline trực tiếp, tương đương về chức năng.
+> - Report viewer nằm trong `InterviewDetail.tsx` (không có trang `InterviewReport.tsx` riêng), đủ các section: Summary, Recommendation, CV Match, JD Fit, Q&A Analysis, Rubric Scores, Print/Export PDF.
+> - Candidate join Daily room qua endpoint public mới `POST /orchestrator/interviews/:id/join-room` (trả roomUrl + candidateToken); fallback camera preview local khi Daily chưa cấu hình. Cloud recording bật tự động lúc `start-greeting`.
+> - Ghi âm câu trả lời bằng WAV 16kHz (Web Audio API) thay vì MediaRecorder/webm vì endpoint STT (VNG MaaS whisper) chỉ nhận RIFF/WAV.
+> - Dùng `@daily-co/daily-js` (đã có sẵn) thay vì `@daily-co/react-library`.
 
 ## Mục tiêu
 

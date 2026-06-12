@@ -45,6 +45,13 @@ export class OrchestratorController {
 
   // ── Candidate-driven (public, like other candidate endpoints) ──────
 
+  /** Returns the Daily room URL + a candidate-scoped meeting token. Public so the
+   *  interview page (token link, no JWT) can join the video room. */
+  @Post('join-room')
+  joinRoom(@Param('id') id: string) {
+    return this.orchestrator.joinRoom(id);
+  }
+
   @Post('consent')
   async consent(@Param('id') id: string) {
     await this.orchestrator.onConsentAccepted(id);

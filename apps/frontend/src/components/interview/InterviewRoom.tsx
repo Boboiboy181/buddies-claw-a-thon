@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Daily, { type DailyCall } from '@daily-co/daily-js';
 import { Bot, CircleStop, Loader2, Mic } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -136,18 +137,43 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
     onError: ({ message }) => toast.error(message),
   });
 
-  // Mount: mic recorder + self camera + kick off the agent
+  // Mount: mic recorder + video (Daily room if available, else local preview) + kick off the agent
   useEffect(() => {
     const recorder = new AudioRecorder();
     recorderRef.current = recorder;
     let videoStream: MediaStream | null = null;
+    let dailyCall: DailyCall | null = null;
     let rafId = 0;
+
+    // Join the Daily room so the candidate's video/audio gets cloud-recorded.
+    // Falls back to a local-only camera preview when Daily isn't configured.
+    const startVideo = async () => {
+      try {
+        const { data } = await api.post(`/orchestrator/interviews/${interview.id}/join-room`);
+        if (!data?.roomUrl || !data?.candidateToken || data.candidateToken === 'mock-token') {
+          throw new Error('Daily not configured');
+        }
+        dailyCall = Daily.createCallObject();
+        dailyCall.on('track-started', (e) => {
+          if (e.participant?.local && e.track.kind === 'video' && videoRef.current) {
+            videoRef.current.srcObject = new MediaStream([e.track]);
+          }
+        });
+        await dailyCall.join({ url: data.roomUrl, token: data.candidateToken });
+      } catch {
+        if (dailyCall) {
+          dailyCall.destroy().catch(() => undefined);
+          dailyCall = null;
+        }
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) videoRef.current.srcObject = videoStream;
+      }
+    };
 
     (async () => {
       try {
         await recorder.init();
-        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) videoRef.current.srcObject = videoStream;
+        await startVideo();
       } catch {
         setPhase('failed');
         setAgentText('Không truy cập được camera/micro.');
@@ -180,6 +206,9 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       cancelAnimationFrame(rafId);
       recorder.destroy();
       videoStream?.getTracks().forEach((t) => t.stop());
+      if (dailyCall) {
+        dailyCall.leave().then(() => dailyCall?.destroy()).catch(() => undefined);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interview.id]);
@@ -206,7 +235,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
     <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       {/* Agent panel */}
       <Card className="border-border/80 shadow-lg shadow-slate-950/5">
-        <CardContent className="flex min-h-[420px] flex-col items-center justify-center gap-6 p-6 text-center md:p-8">
+        <CardContent className="flex min-h-[320px] flex-col items-center justify-center gap-6 p-6 text-center sm:min-h-[420px] md:p-8">
           <div className="flex items-center gap-2 self-start rounded-full border bg-muted/45 px-3 py-1 text-xs text-muted-foreground">
             {progressLabel}
           </div>

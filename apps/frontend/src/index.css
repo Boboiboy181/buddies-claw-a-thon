@@ -160,3 +160,17 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* Print: keep only the report content (used by Print / Export PDF on InterviewDetail) */
+@media print {
+  [data-slot='sidebar'],
+  [data-slot='sidebar-trigger'],
+  [data-slot='sidebar-rail'],
+  header,
+  button {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}

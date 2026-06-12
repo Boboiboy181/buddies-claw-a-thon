@@ -1,16 +1,41 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BriefcaseBusiness, MapPin, Plus } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, MapPin, Plus, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
 
+const STATUS_OPTIONS = ['ALL', 'DRAFT', 'ACTIVE', 'ARCHIVED'] as const;
+
 export default function JobsList() {
-  const { data, isLoading } = useQuery({ queryKey: ['jobs'], queryFn: () => api.get('/jobs').then(r => r.data) });
+  const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
+  const [status, setStatus] = useState<string>('ALL');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKeyword(keyword.trim()), 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['jobs', { keyword: debouncedKeyword, status }],
+    queryFn: () =>
+      api
+        .get('/jobs', {
+          params: {
+            ...(debouncedKeyword && { keyword: debouncedKeyword }),
+            ...(status !== 'ALL' && { status }),
+          },
+        })
+        .then(r => r.data),
+  });
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 xl:p-8">
@@ -23,6 +48,30 @@ export default function JobsList() {
           </Link>
         }
       />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by title or keyword..."
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={status} onValueChange={(v) => setStatus(v ?? 'ALL')}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s === 'ALL' ? 'All statuses' : s.charAt(0) + s.slice(1).toLowerCase()}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {isLoading ? (
         <PageBlock variant="dashed">
@@ -76,8 +125,12 @@ export default function JobsList() {
                   <BriefcaseBusiness />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <CardTitle>No jobs yet</CardTitle>
-                  <CardDescription>Create your first job brief to start building interview flows.</CardDescription>
+                  <CardTitle>{debouncedKeyword || status !== 'ALL' ? 'No jobs match your filters' : 'No jobs yet'}</CardTitle>
+                  <CardDescription>
+                    {debouncedKeyword || status !== 'ALL'
+                      ? 'Try a different keyword or status.'
+                      : 'Create your first job brief to start building interview flows.'}
+                  </CardDescription>
                 </div>
                 <Link to="/hr/jobs/new" className={buttonVariants({ className: 'mt-2 h-9 rounded-lg px-3' })}>
                   <Plus data-icon="inline-start" />
@@ -99,5 +152,5 @@ function jobStatusVariant(status: string) {
     archived: 'secondary',
   };
 
-  return map[status] || 'secondary';
+  return map[status?.toLowerCase()] || 'secondary';
 }

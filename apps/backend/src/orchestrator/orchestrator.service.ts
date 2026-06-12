@@ -60,6 +60,31 @@ export class InterviewOrchestratorService {
     return { roomUrl, hostToken, candidateToken };
   }
 
+  /** Candidate-side room join: ensures the room exists and returns a
+   *  non-owner meeting token. Called from the public interview page. */
+  async joinRoom(interviewId: string) {
+    const interview = await this.getInterview(interviewId);
+
+    let roomName = interview.dailyRoomName;
+    let roomUrl = interview.dailyRoomUrl;
+    if (!roomName || !roomUrl) {
+      const room = await this.daily.createRoom(interviewId);
+      roomName = room.name;
+      roomUrl = room.url;
+      await this.prisma.interview.update({
+        where: { id: interviewId },
+        data: { dailyRoomName: roomName, dailyRoomUrl: roomUrl },
+      });
+    }
+
+    const candidateToken = await this.daily.getMeetingToken(
+      roomName,
+      `candidate-${interviewId}`,
+      false,
+    );
+    return { roomUrl, candidateToken };
+  }
+
   // ── Giai đoạn 2: Invite ─────────────────────────────────────────────
 
   async sendInvite(interviewId: string) {
@@ -93,7 +118,16 @@ export class InterviewOrchestratorService {
   // ── Giai đoạn 4: Greeting ───────────────────────────────────────────
 
   async startGreeting(interviewId: string) {
-    await this.getInterview(interviewId);
+    const interview = await this.getInterview(interviewId);
+
+    // Start cloud recording now that the candidate is in the room.
+    // Best-effort: recording failures must not block the interview.
+    if (interview.dailyRoomName) {
+      this.daily
+        .startRecording(interview.dailyRoomName)
+        .catch((err) => this.logger.warn(`startRecording failed for ${interviewId}: ${err.message}`));
+    }
+
     await this.runOrFail(interviewId, async () => {
       await this.prisma.interview.update({
         where: { id: interviewId },

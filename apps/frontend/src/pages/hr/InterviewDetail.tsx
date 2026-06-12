@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { ArrowLeft, Copy, Send, Video, DoorOpen } from 'lucide-react';
+import { ArrowLeft, Copy, Printer, Send, Video, DoorOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -129,6 +129,12 @@ export default function InterviewDetail() {
                 View Recording
               </Button>
             )}
+            {report && (
+              <Button onClick={() => window.print()} variant="outline" className="rounded-lg">
+                <Printer data-icon="inline-start" />
+                Print / Export PDF
+              </Button>
+            )}
           </div>
 
           <div className="grid gap-6 xl:grid-cols-3">
@@ -153,6 +159,63 @@ export default function InterviewDetail() {
                           </ul>
                         </div>
                       )}
+                    </Section>
+                  )}
+
+                  {report.cvMatchAnalysisJson && (
+                    <Section title="CV Match Analysis">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {report.cvMatchAnalysisJson.matchedClaims?.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-emerald-700">MATCHED CLAIMS</p>
+                            <ul className="flex list-disc flex-col gap-1 pl-5">
+                              {report.cvMatchAnalysisJson.matchedClaims.map((c: string, i: number) => <li key={i} className="text-xs text-foreground/80">{c}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {report.cvMatchAnalysisJson.missingOrUnclearClaims?.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-amber-700">MISSING / UNCLEAR</p>
+                            <ul className="flex list-disc flex-col gap-1 pl-5">
+                              {report.cvMatchAnalysisJson.missingOrUnclearClaims.map((c: string, i: number) => <li key={i} className="text-xs text-foreground/80">{c}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                      {report.cvMatchAnalysisJson.inconsistenciesToReview?.length > 0 && (
+                        <div className="mt-3">
+                          <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-red-600">INCONSISTENCIES TO REVIEW</p>
+                          <ul className="flex list-disc flex-col gap-1 pl-5">
+                            {report.cvMatchAnalysisJson.inconsistenciesToReview.map((c: string, i: number) => <li key={i} className="text-xs text-foreground/80">{c}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </Section>
+                  )}
+
+                  {report.jdFitAnalysisJson && (
+                    <Section title="JD Fit Analysis">
+                      {report.jdFitAnalysisJson.roleFitSummary && (
+                        <p className="mb-3 text-sm leading-7 text-foreground/85">{report.jdFitAnalysisJson.roleFitSummary}</p>
+                      )}
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {report.jdFitAnalysisJson.matchingSkills?.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-emerald-700">MATCHING SKILLS</p>
+                            <div className="flex flex-wrap gap-2">
+                              {report.jdFitAnalysisJson.matchingSkills.map((s: string, i: number) => <Badge key={i} variant="secondary">{s}</Badge>)}
+                            </div>
+                          </div>
+                        )}
+                        {report.jdFitAnalysisJson.gaps?.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-red-600">GAPS</p>
+                            <ul className="flex list-disc flex-col gap-1 pl-5">
+                              {report.jdFitAnalysisJson.gaps.map((g: string, i: number) => <li key={i} className="text-xs text-foreground/80">{g}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     </Section>
                   )}
 

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarClock, CheckCircle2, Circle, FileText, Plus, Radio } from 'lucide-react';
@@ -22,8 +24,26 @@ function statusBadge(status: string) {
   return colors[status?.toLowerCase()] || 'secondary';
 }
 
+const STATUS_OPTIONS = [
+  'ALL',
+  'CREATED',
+  'INVITED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'REPORT_GENERATING',
+  'REPORT_READY',
+  'FAILED',
+] as const;
+
 export default function InterviewsList() {
-  const { data, isLoading } = useQuery({ queryKey: ['interviews'], queryFn: () => api.get('/interviews').then(r => r.data) });
+  const [status, setStatus] = useState<string>('ALL');
+  const { data, isLoading } = useQuery({
+    queryKey: ['interviews', { status }],
+    queryFn: () =>
+      api
+        .get('/interviews', { params: status !== 'ALL' ? { status } : {} })
+        .then(r => r.data),
+  });
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 xl:p-8">
@@ -36,6 +56,21 @@ export default function InterviewsList() {
           </Link>
         }
       />
+
+      <div className="flex">
+        <Select value={status} onValueChange={(v) => setStatus(v ?? 'ALL')}>
+          <SelectTrigger className="w-full sm:w-52">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s === 'ALL' ? 'All statuses' : s.replace(/_/g, ' ')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <PageBlock>
         <CardHeader className="flex flex-col gap-2 border-b border-border/80 pb-5 md:flex-row md:items-center md:justify-between">
