@@ -28,7 +28,7 @@ function StatCard({
   note: string;
 }) {
   return (
-    <Card className="overflow-hidden border-white/70 bg-white/92">
+    <Card className="overflow-hidden border-border bg-card shadow-sm">
       <CardContent className="flex items-center justify-between p-5">
         <div className="space-y-2">
           <p className="text-muted-foreground text-sm">{label}</p>
@@ -45,7 +45,7 @@ function StatCard({
 
 function MetricChip({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3">
+    <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
       <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
     </div>
@@ -148,7 +148,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-5 p-4 md:p-6 xl:p-8">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.75fr)]">
-        <Card className="border-white/70 bg-white/94">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="gap-3 pb-0">
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
@@ -184,7 +184,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-white/70 bg-white/94">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle>Pipeline status</CardTitle>
             <CardDescription>The three signals that matter most during the day.</CardDescription>
@@ -195,15 +195,15 @@ export default function Dashboard() {
             ))}
 
             <div className="grid gap-3 pt-1 sm:grid-cols-3 xl:grid-cols-1">
-              <div className="rounded-xl border border-border/70 bg-muted/25 px-4 py-3">
+              <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">Completion rate</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">{completionRate}%</p>
               </div>
-              <div className="rounded-xl border border-border/70 bg-muted/25 px-4 py-3">
+              <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">Active queue</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">{pendingInterviews}</p>
               </div>
-              <div className="rounded-xl border border-border/70 bg-muted/25 px-4 py-3">
+              <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">Completed</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">{completedInterviews}</p>
               </div>
@@ -219,7 +219,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Card className="border-white/70 bg-white/92">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle>Recent Interviews</CardTitle>
@@ -253,7 +253,7 @@ export default function Dashboard() {
         </Card>
 
         <div className="grid gap-6">
-          <Card className="border-white/70 bg-white/92">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle>Recent Candidates</CardTitle>
@@ -288,7 +288,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-white/70 bg-white/92">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader>
               <CardTitle>Queue focus</CardTitle>
               <CardDescription>A quick handoff summary for what still needs attention.</CardDescription>

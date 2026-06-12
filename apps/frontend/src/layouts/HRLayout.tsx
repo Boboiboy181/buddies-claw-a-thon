@@ -48,7 +48,7 @@ export default function HRLayout() {
   return (
     <SidebarProvider
       defaultOpen
-      className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.09),_transparent_20%),linear-gradient(180deg,_rgba(255,255,255,0.99)_0%,_rgba(248,250,252,1)_100%)]"
+      className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.08),_transparent_20%),linear-gradient(180deg,_rgba(248,250,252,1)_0%,_rgba(241,245,249,1)_100%)]"
     >
       <AppSidebar />
 

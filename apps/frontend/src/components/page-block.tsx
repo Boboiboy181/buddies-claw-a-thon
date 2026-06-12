@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 const pageBlockVariants = cva('border', {
   variants: {
     variant: {
-      default: 'border-border/80 bg-white/92',
-      dashed: 'border-border/70 border-dashed bg-white/88',
+      default: 'border-border bg-card shadow-sm',
+      dashed: 'border-border/70 border-dashed bg-card/80',
       transparent: 'border-border/70 border-dashed bg-transparent',
     },
   },

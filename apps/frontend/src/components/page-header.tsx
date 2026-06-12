@@ -16,8 +16,8 @@ interface PageHeaderProps {
 }
 
 const variantClasses: Record<PageHeaderVariant, string> = {
-  card: 'flex flex-col gap-4 rounded-2xl border border-border/80 bg-white/92 p-8 backdrop-blur lg:flex-row lg:items-center lg:justify-between',
-  plain: 'flex flex-col gap-4 rounded-2xl border border-border/80 bg-white/92 p-8 lg:flex-row lg:items-start lg:justify-between',
+  card: 'flex flex-col gap-4 rounded-2xl border border-border bg-card p-8 shadow-sm lg:flex-row lg:items-center lg:justify-between',
+  plain: 'flex flex-col gap-4 rounded-2xl border border-border bg-card p-8 shadow-sm lg:flex-row lg:items-start lg:justify-between',
 };
 
 const contentVariantClasses: Record<PageHeaderVariant, string> = {
