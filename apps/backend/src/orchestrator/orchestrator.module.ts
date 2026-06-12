@@ -4,6 +4,7 @@ import { TtsModule } from '../tts/tts.module';
 import { SttModule } from '../stt/stt.module';
 import { StorageModule } from '../storage/storage.module';
 import { DailyModule } from '../daily/daily.module';
+import { LivekitModule } from '../livekit/livekit.module';
 import { GatewayModule } from '../gateway/gateway.module';
 import { QUEUE_REPORT_GENERATION } from '../queue/queue.constants';
 import { InterviewOrchestratorService } from './orchestrator.service';
@@ -16,6 +17,7 @@ import { OrchestratorController } from './orchestrator.controller';
     SttModule,
     StorageModule,
     DailyModule,
+    LivekitModule,
     GatewayModule,
   ],
   controllers: [OrchestratorController],

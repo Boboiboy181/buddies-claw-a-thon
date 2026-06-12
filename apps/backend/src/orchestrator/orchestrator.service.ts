@@ -8,6 +8,7 @@ import { TtsService } from '../tts/tts.service';
 import { SttService } from '../stt/stt.service';
 import { StorageService } from '../storage/storage.service';
 import { DailyService } from '../daily/daily.service';
+import { LivekitService } from '../livekit/livekit.service';
 import { InterviewGateway } from '../gateway/interview.gateway';
 import { QUEUE_REPORT_GENERATION, JOB_GENERATE_REPORT } from '../queue/queue.constants';
 
@@ -25,6 +26,7 @@ export class InterviewOrchestratorService {
     private stt: SttService,
     private storage: StorageService,
     private daily: DailyService,
+    private livekit: LivekitService,
     private gateway: InterviewGateway,
     private config: ConfigService,
     @InjectQueue(QUEUE_REPORT_GENERATION) private reportQueue: Queue,
@@ -34,6 +36,22 @@ export class InterviewOrchestratorService {
 
   async setupRoom(interviewId: string) {
     const interview = await this.getInterview(interviewId);
+
+    if (this.livekit.isConfigured) {
+      const room = await this.livekit.ensureRoom(interviewId);
+      await this.prisma.interview.update({
+        where: { id: interviewId },
+        data: { dailyRoomName: room.name, dailyRoomUrl: room.url },
+      });
+      const [hostToken, candidateToken] = await Promise.all([
+        this.livekit.getAccessToken(room.name, `host-${interviewId}`, true),
+        this.livekit.getAccessToken(room.name, `candidate-${interviewId}`, false),
+      ]);
+      this.prewarmTts(interviewId).catch((err) =>
+        this.logger.warn(`TTS prewarm failed for ${interviewId}: ${err.message}`),
+      );
+      return { provider: 'livekit', roomUrl: room.url, hostToken, candidateToken };
+    }
 
     let roomName = interview.dailyRoomName;
     let roomUrl = interview.dailyRoomUrl;
@@ -61,9 +79,26 @@ export class InterviewOrchestratorService {
   }
 
   /** Candidate-side room join: ensures the room exists and returns a
-   *  non-owner meeting token. Called from the public interview page. */
+   *  non-owner meeting token. Called from the public interview page.
+   *  Prefers LiveKit when configured; falls back to Daily. */
   async joinRoom(interviewId: string) {
     const interview = await this.getInterview(interviewId);
+
+    if (this.livekit.isConfigured) {
+      const room = await this.livekit.ensureRoom(interviewId);
+      if (interview.dailyRoomName !== room.name || interview.dailyRoomUrl !== room.url) {
+        await this.prisma.interview.update({
+          where: { id: interviewId },
+          data: { dailyRoomName: room.name, dailyRoomUrl: room.url },
+        });
+      }
+      const candidateToken = await this.livekit.getAccessToken(
+        room.name,
+        `candidate-${interviewId}`,
+        false,
+      );
+      return { provider: 'livekit', roomUrl: room.url, candidateToken };
+    }
 
     let roomName = interview.dailyRoomName;
     let roomUrl = interview.dailyRoomUrl;
@@ -82,7 +117,7 @@ export class InterviewOrchestratorService {
       `candidate-${interviewId}`,
       false,
     );
-    return { roomUrl, candidateToken };
+    return { provider: 'daily', roomUrl, candidateToken };
   }
 
   // ── Giai đoạn 2: Invite ─────────────────────────────────────────────
@@ -123,7 +158,8 @@ export class InterviewOrchestratorService {
     // Start cloud recording now that the candidate is in the room.
     // Best-effort: recording failures must not block the interview.
     if (interview.dailyRoomName) {
-      this.daily
+      const recorder = this.livekit.isConfigured ? this.livekit : this.daily;
+      recorder
         .startRecording(interview.dailyRoomName)
         .catch((err) => this.logger.warn(`startRecording failed for ${interviewId}: ${err.message}`));
     }
@@ -282,7 +318,8 @@ export class InterviewOrchestratorService {
 
     if (interview.dailyRoomName) {
       try {
-        await this.daily.stopRecording(interview.dailyRoomName);
+        const recorder = this.livekit.isConfigured ? this.livekit : this.daily;
+        await recorder.stopRecording(interview.dailyRoomName);
       } catch (err: any) {
         this.logger.warn(`stopRecording failed for ${interviewId}: ${err.message}`);
       }

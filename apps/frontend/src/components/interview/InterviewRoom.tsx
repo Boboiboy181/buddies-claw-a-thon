@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Daily, { type DailyCall } from '@daily-co/daily-js';
+import { Room as LivekitRoom, Track } from 'livekit-client';
 import { Bot, CircleStop, Loader2, Mic } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -137,33 +138,47 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
     onError: ({ message }) => toast.error(message),
   });
 
-  // Mount: mic recorder + video (Daily room if available, else local preview) + kick off the agent
+  // Mount: mic recorder + video (LiveKit/Daily room if available, else local preview) + kick off the agent
   useEffect(() => {
     const recorder = new AudioRecorder();
     recorderRef.current = recorder;
     let videoStream: MediaStream | null = null;
     let dailyCall: DailyCall | null = null;
+    let livekitRoom: LivekitRoom | null = null;
     let rafId = 0;
 
-    // Join the Daily room so the candidate's video/audio gets cloud-recorded.
-    // Falls back to a local-only camera preview when Daily isn't configured.
+    // Join the video room so the candidate's video/audio gets cloud-recorded.
+    // Falls back to a local-only camera preview when no provider is configured.
     const startVideo = async () => {
       try {
         const { data } = await api.post(`/orchestrator/interviews/${interview.id}/join-room`);
         if (!data?.roomUrl || !data?.candidateToken || data.candidateToken === 'mock-token') {
-          throw new Error('Daily not configured');
+          throw new Error('Video provider not configured');
         }
-        dailyCall = Daily.createCallObject();
-        dailyCall.on('track-started', (e) => {
-          if (e.participant?.local && e.track.kind === 'video' && videoRef.current) {
-            videoRef.current.srcObject = new MediaStream([e.track]);
-          }
-        });
-        await dailyCall.join({ url: data.roomUrl, token: data.candidateToken });
+        if (data.provider === 'livekit') {
+          livekitRoom = new LivekitRoom();
+          await livekitRoom.connect(data.roomUrl, data.candidateToken);
+          await livekitRoom.localParticipant.enableCameraAndMicrophone();
+          const camPub = livekitRoom.localParticipant.getTrackPublication(Track.Source.Camera);
+          const track = camPub?.track;
+          if (track && videoRef.current) track.attach(videoRef.current);
+        } else {
+          dailyCall = Daily.createCallObject();
+          dailyCall.on('track-started', (e) => {
+            if (e.participant?.local && e.track.kind === 'video' && videoRef.current) {
+              videoRef.current.srcObject = new MediaStream([e.track]);
+            }
+          });
+          await dailyCall.join({ url: data.roomUrl, token: data.candidateToken });
+        }
       } catch {
         if (dailyCall) {
           dailyCall.destroy().catch(() => undefined);
           dailyCall = null;
+        }
+        if (livekitRoom) {
+          livekitRoom.disconnect().catch(() => undefined);
+          livekitRoom = null;
         }
         videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (videoRef.current) videoRef.current.srcObject = videoStream;
@@ -209,6 +224,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       if (dailyCall) {
         dailyCall.leave().then(() => dailyCall?.destroy()).catch(() => undefined);
       }
+      livekitRoom?.disconnect().catch(() => undefined);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interview.id]);
