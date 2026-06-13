@@ -16,7 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <ErrorBoundary>
           <App />
         </ErrorBoundary>
-        <Toaster position="top-right" />
+        <Toaster position="top-center" />
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>
