@@ -28,9 +28,9 @@ Platform phỏng vấn tự động dùng AI: HR tạo session, upload JD + CV +
 |-------|-----|--------|------|
 | 1 | Monorepo Foundation + Scaffold | ✅ Done | [phase-1.md](./phase-1.md) |
 | 2 | Backend Core Modules | ✅ Done | [phase-2.md](./phase-2.md) |
-| 3 | Interview Orchestrator + State Machine | 🔲 Todo | [phase-3.md](./phase-3.md) |
-| 4 | Frontend Integration + Real APIs | 🔲 Todo | [phase-4.md](./phase-4.md) |
-| 5 | Polish, Seed, E2E, README | 🔲 Todo | [phase-5.md](./phase-5.md) |
+| 3 | Interview Orchestrator + State Machine | ✅ Done | [phase-3.md](./phase-3.md) |
+| 4 | Frontend Integration + Real APIs | ✅ Done | [phase-4.md](./phase-4.md) |
+| 5 | Polish, Seed, E2E, README | ✅ Done | [phase-5.md](./phase-5.md) |
 
 ## Quick Start
 

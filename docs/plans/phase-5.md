@@ -1,6 +1,6 @@
 # Phase 5 — Polish, Seed, E2E, README
 
-**Status:** 🔲 Todo  
+**Status:** ✅ Done  
 **Ước tính:** 0.5 ngày
 
 ## Mục tiêu

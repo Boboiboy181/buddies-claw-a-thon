@@ -1,0 +1,47 @@
+# docker-compose.override.yml
+#
+# Auto-merged by `docker compose up` for LOCAL development. It adds object
+# storage (MinIO) — which the production stack expects to be provided
+# externally (real S3) — and points the backend at it with safe local defaults.
+#
+# CI / production should run WITHOUT this file:
+#     docker compose -f docker-compose.yml up -d
+#
+# Override secrets here for local runs; this file is meant to be edited freely
+# and never carries real credentials.
+services:
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO console
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    environment:
+      # Point the backend's S3 client at the local MinIO service.
+      STORAGE_PROVIDER: s3
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_S3_BUCKET: hr-interview-recordings
+      AWS_S3_ENDPOINT: http://minio:9000
+      # Override for local dev only — replace in real deployments.
+      JWT_SECRET: local-dev-secret-change-me
+    depends_on:
+      minio:
+        condition: service_healthy
+
+volumes:
+  minio_data:

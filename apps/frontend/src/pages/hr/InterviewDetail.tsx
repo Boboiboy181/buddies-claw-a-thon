@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PageBlock } from '@/components/page-block';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -32,7 +33,7 @@ export default function InterviewDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: interview } = useQuery({
+  const { data: interview, isLoading } = useQuery({
     queryKey: ['interview', id],
     queryFn: () => api.get(`/interviews/${id}`).then(r => r.data),
     refetchInterval: (query) => {
@@ -81,6 +82,16 @@ export default function InterviewDetail() {
       <Button onClick={() => navigate(-1)} variant="ghost" className="w-fit rounded-lg pl-2 text-muted-foreground">
         <ArrowLeft data-icon="inline-start" /> Back
       </Button>
+
+      {isLoading && (
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-32 rounded-lg" />
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <Skeleton className="h-96 rounded-lg" />
+            <Skeleton className="h-96 rounded-lg" />
+          </div>
+        </div>
+      )}
 
       {interview && (
         <>
@@ -277,7 +288,7 @@ export default function InterviewDetail() {
                 </PageBlock>
               )}
 
-              {report?.audioReviewSignals && (
+              {report?.audioReviewSignalsJson && (
                 <PageBlock>
                   <CardHeader>
                     <CardTitle>Non-verbal & Audio Review Signals</CardTitle>
@@ -285,8 +296,8 @@ export default function InterviewDetail() {
                   <CardContent>
                     <p className="text-muted-foreground mb-3 text-xs italic">These are observational signals for HR reference only. They do not determine hiring decisions.</p>
                     <dl className="flex flex-col gap-2 text-sm">
-                      <div><dt className="text-muted-foreground">Speaking Pace</dt><dd className="font-medium capitalize">{report.audioReviewSignals.speakingPace}</dd></div>
-                      <div><dt className="text-muted-foreground">Total Duration</dt><dd className="font-medium">{report.audioReviewSignals.speakingDurationSeconds}s</dd></div>
+                      <div><dt className="text-muted-foreground">Speaking Pace</dt><dd className="font-medium capitalize">{report.audioReviewSignalsJson.speakingPace}</dd></div>
+                      <div><dt className="text-muted-foreground">Total Duration</dt><dd className="font-medium">{report.audioReviewSignalsJson.speakingDurationSeconds}s</dd></div>
                     </dl>
                   </CardContent>
                 </PageBlock>

@@ -12,7 +12,28 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-5 p-4 md:p-6 xl:p-8">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.75fr)]">
+        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 rounded-xl" />
+        ))}
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
+      </div>
+    </div>
+  );
+}
 
 function StatCard({
   label,
@@ -82,7 +103,8 @@ function ProgressRow({
 }
 
 export default function Dashboard() {
-  const { data } = useQuery({ queryKey: ['dashboard'], queryFn: () => api.get('/hr/dashboard/summary').then(r => r.data) });
+  const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: () => api.get('/hr/dashboard/summary').then(r => r.data) });
+  if (isLoading) return <DashboardSkeleton />;
   const s = data || {};
   const totalInterviews = s.totalInterviews ?? 0;
   const pendingInterviews = s.pendingInterviews ?? 0;

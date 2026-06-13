@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -16,10 +18,14 @@ import { QueueModule } from './queue/queue.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { OrchestratorModule } from './orchestrator/orchestrator.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    // Global rate limit: 100 requests / minute / IP. Stricter per-route limits
+    // (e.g. login) are applied with @Throttle on the controller.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
@@ -41,6 +47,8 @@ import { OrchestratorModule } from './orchestrator/orchestrator.module';
     DashboardModule,
     GatewayModule,
     OrchestratorModule,
+    HealthModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

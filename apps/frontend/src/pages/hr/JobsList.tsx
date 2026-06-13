@@ -6,11 +6,13 @@ import { ArrowRight, BriefcaseBusiness, MapPin, Plus, Search } from 'lucide-reac
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 const STATUS_OPTIONS = ['ALL', 'DRAFT', 'ACTIVE', 'ARCHIVED'] as const;
 
@@ -74,9 +76,21 @@ export default function JobsList() {
       </div>
 
       {isLoading ? (
-        <PageBlock variant="dashed">
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">Loading jobs...</CardContent>
-        </PageBlock>
+        <div className="grid gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <PageBlock key={i}>
+              <CardContent className="flex items-center gap-4 p-4 md:p-5">
+                <Skeleton className="size-11 shrink-0 rounded-lg" />
+                <div className="flex flex-1 flex-col gap-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="size-9 rounded-md" />
+              </CardContent>
+            </PageBlock>
+          ))}
+        </div>
       ) : (
         <div className="grid gap-3">
           {data?.map((job: any) => (
@@ -118,27 +132,21 @@ export default function JobsList() {
               </PageBlock>
             </Link>
           ))}
-          {!data?.length && (
-            <PageBlock variant="transparent">
-              <CardHeader className="items-center gap-3 py-12 text-center">
-                <div className="flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <BriefcaseBusiness />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <CardTitle>{debouncedKeyword || status !== 'ALL' ? 'No jobs match your filters' : 'No jobs yet'}</CardTitle>
-                  <CardDescription>
-                    {debouncedKeyword || status !== 'ALL'
-                      ? 'Try a different keyword or status.'
-                      : 'Create your first job brief to start building interview flows.'}
-                  </CardDescription>
-                </div>
-                <Link to="/hr/jobs/new" className={buttonVariants({ className: 'mt-2 h-9 rounded-lg px-3' })}>
-                  <Plus data-icon="inline-start" />
-                  New job
-                </Link>
-              </CardHeader>
-            </PageBlock>
-          )}
+          {!data?.length &&
+            (debouncedKeyword || status !== 'ALL' ? (
+              <EmptyState
+                icon={BriefcaseBusiness}
+                title="No jobs match your filters"
+                description="Try a different keyword or status."
+              />
+            ) : (
+              <EmptyState
+                icon={BriefcaseBusiness}
+                title="No jobs yet"
+                description="Create your first job brief to start building interview flows."
+                action={{ label: 'New job', to: '/hr/jobs/new', icon: Plus }}
+              />
+            ))}
         </div>
       )}
     </div>

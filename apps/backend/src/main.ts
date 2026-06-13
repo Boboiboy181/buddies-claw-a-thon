@@ -1,5 +1,5 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { IoAdapter } from '@nestjs/platform-socket.io';
@@ -13,11 +13,17 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+  // Strips @Exclude()-decorated fields (e.g. password) from any class-instance responses.
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useWebSocketAdapter(new IoAdapter(app));
   app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
     .setTitle('HR Interview Platform API')
+    .setDescription(
+      'REST + WebSocket API for the AI-powered HR interview platform: jobs, candidates, ' +
+        'question sets, interview orchestration, and AI-generated reports.',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();

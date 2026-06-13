@@ -7,7 +7,8 @@ import { ArrowRight, CalendarClock, CheckCircle2, Circle, FileText, Plus, Radio 
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -83,7 +84,17 @@ export default function InterviewsList() {
         <CardContent className="p-0">
           <div className="lg:hidden">
             {isLoading ? (
-              <p className="px-5 py-10 text-center text-sm text-muted-foreground">Loading...</p>
+              <div className="divide-y divide-border/80">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-start justify-between gap-3 p-4">
+                    <div className="flex flex-1 flex-col gap-2">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                ))}
+              </div>
             ) : data?.length ? (
               <div className="divide-y divide-border/80">
                 {data.map((i: any) => (
@@ -126,9 +137,13 @@ export default function InterviewsList() {
             </TableHeader>
             <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Loading...</TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 7 }).map((_, j) => (
+                    <TableCell key={j}><Skeleton className="h-4 w-full max-w-28" /></TableCell>
+                  ))}
+                </TableRow>
+              ))
             ) : data?.map((i: any) => (
               <TableRow key={i.id}>
                 <TableCell className="font-medium">{i.candidate?.fullName}</TableCell>
