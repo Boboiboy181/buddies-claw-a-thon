@@ -16,6 +16,10 @@ const DEFAULT_GREETING_VI =
   'Xin chào! Tôi là trợ lý phỏng vấn AI. Cảm ơn bạn đã tham gia buổi phỏng vấn hôm nay. ' +
   'Tôi sẽ lần lượt đọc từng câu hỏi, bạn hãy trả lời sau khi nghe xong. Chúng ta bắt đầu nhé!';
 
+const DEFAULT_CLOSING_VI =
+  'Cảm ơn bạn đã hoàn thành buổi phỏng vấn hôm nay. Chúng tôi sẽ xem xét các câu trả lời của bạn ' +
+  'và phản hồi trong thời gian sớm nhất. Chúc bạn một ngày tốt lành!';
+
 @Injectable()
 export class InterviewOrchestratorService {
   private readonly logger = new Logger(InterviewOrchestratorService.name);
@@ -297,8 +301,24 @@ export class InterviewOrchestratorService {
       await this.askQuestion(interviewId, nextIndex);
       return { done: false, nextQuestionIndex: nextIndex };
     }
+    // Speak a closing thank-you before completing. Best-effort: a TTS failure
+    // must not block finishing (report generation is queued server-side either way).
+    await this.playClosing(interviewId).catch((err) =>
+      this.logger.warn(`Closing TTS failed for ${interviewId}: ${err.message}`),
+    );
     await this.finishInterview(interviewId);
     return { done: true, nextQuestionIndex: null };
+  }
+
+  /** Synthesizes and emits the agent's closing thank-you message (type 'closing'). */
+  async playClosing(interviewId: string) {
+    const closingText = this.config.get('AGENT_CLOSING_TEXT', DEFAULT_CLOSING_VI);
+    const { extension, contentType } = this.tts.audioFormat;
+    const key = `interviews/${interviewId}/tts/closing.${extension}`;
+    const buffer = await this.tts.synthesize(closingText);
+    await this.storage.uploadBuffer(buffer, key, contentType);
+    const audioUrl = await this.storage.getSignedDownloadUrl(key);
+    this.gateway.emitAgentSpeak(interviewId, { type: 'closing', text: closingText, audioUrl });
   }
 
   // ── Giai đoạn 9: Finish ─────────────────────────────────────────────

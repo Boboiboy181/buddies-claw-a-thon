@@ -53,7 +53,7 @@ export interface CandidateInterviewPayload {
 // WebSocket payloads (apps/backend/src/gateway/interview.gateway.ts)
 
 export interface AgentSpeakEvent {
-  type: 'greeting' | 'question';
+  type: 'greeting' | 'question' | 'closing';
   text: string;
   audioUrl: string;
   questionId?: string;

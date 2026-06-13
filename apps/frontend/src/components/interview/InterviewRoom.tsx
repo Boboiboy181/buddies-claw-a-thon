@@ -38,6 +38,8 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
   const maxDurationRef = useRef<number | undefined>(undefined);
   const submittingRef = useRef(false);
   const startedRef = useRef(false);
+  const closingRef = useRef(false);
+  const closingFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const orchestrate = useCallback(
     (action: string, params?: Record<string, unknown>) =>
@@ -84,6 +86,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
   const handleAgentSpeak = useCallback((e: AgentSpeakEvent) => {
     setPhase('agent_speaking');
     setAgentText(e.text);
+    if (e.type === 'closing') closingRef.current = true;
     if (e.questionId) currentQuestionIdRef.current = e.questionId;
     const audio = audioRef.current;
     if (!audio) return;
@@ -98,6 +101,12 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
   const handleAudioEnded = useCallback(async () => {
     const type = audioRef.current?.dataset.speakType;
     socket.emitAudioEnded(type ?? 'question');
+    // Closing message finished — leave the room (the report is already queued server-side).
+    if (type === 'closing') {
+      if (closingFallbackRef.current) clearTimeout(closingFallbackRef.current);
+      onCompleted();
+      return;
+    }
     try {
       if (type === 'greeting') {
         await orchestrate(`next-question?index=0`);
@@ -109,7 +118,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       setPhase('failed');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orchestrate]);
+  }, [orchestrate, onCompleted]);
 
   const socket = useInterviewSocket(interview.id, {
     onAgentSpeak: handleAgentSpeak,
@@ -134,7 +143,15 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       }
       if (e.state === 'REPORT_GENERATING' || e.state === 'COMPLETED') setPhase('waiting');
     },
-    onInterviewCompleted: onCompleted,
+    onInterviewCompleted: () => {
+      // Wait for the closing message to finish before leaving; if it never plays
+      // (e.g. autoplay blocked), fall back after a short delay so we don't hang.
+      if (closingRef.current) {
+        closingFallbackRef.current = setTimeout(onCompleted, 20000);
+      } else {
+        onCompleted();
+      }
+    },
     onError: ({ message }) => toast.error(message),
   });
 
@@ -219,6 +236,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (closingFallbackRef.current) clearTimeout(closingFallbackRef.current);
       recorder.destroy();
       videoStream?.getTracks().forEach((t) => t.stop());
       if (dailyCall) {
