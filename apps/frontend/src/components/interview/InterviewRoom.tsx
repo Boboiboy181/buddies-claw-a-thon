@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Daily, { type DailyCall } from '@daily-co/daily-js';
 import { Room as LivekitRoom, Track } from 'livekit-client';
-import { Bot, CircleStop, Loader2, Mic } from 'lucide-react';
+import { Bot, CircleStop, Loader2, Mic, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { AudioRecorder } from '@/lib/audioRecorder';
@@ -82,6 +82,33 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interview.id, orchestrate]);
+
+  // Candidate asks the agent to repeat the current question. Discards the
+  // in-progress recording; the answer timer restarts after the replay (no penalty).
+  const repeatQuestion = useCallback(async () => {
+    if (submittingRef.current) return;
+    const recorder = recorderRef.current;
+    try {
+      if (recorder?.isRecording) await recorder.stop();
+    } catch {
+      /* nothing recorded yet */
+    }
+    setPhase('agent_speaking');
+    setAgentText('Đang phát lại câu hỏi...');
+    try {
+      await orchestrate('repeat-question');
+    } catch {
+      toast.error('Không phát lại được câu hỏi. Vui lòng thử lại.');
+      try {
+        recorder?.start();
+        recordStartRef.current = Date.now();
+        setElapsed(0);
+        setPhase('listening');
+      } catch {
+        setPhase('failed');
+      }
+    }
+  }, [orchestrate]);
 
   const handleAgentSpeak = useCallback((e: AgentSpeakEvent) => {
     setPhase('agent_speaking');
@@ -307,14 +334,25 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
                   style={{ width: `${Math.min(100, micLevel * 250)}%` }}
                 />
               </div>
-              <Button
-                size="lg"
-                className="h-11 rounded-lg px-6"
-                onClick={() => void submitAnswer()}
-              >
-                <CircleStop data-icon="inline-start" />
-                Trả lời xong
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-11 rounded-lg px-5"
+                  onClick={() => void repeatQuestion()}
+                >
+                  <RotateCcw data-icon="inline-start" />
+                  Nghe lại câu hỏi
+                </Button>
+                <Button
+                  size="lg"
+                  className="h-11 rounded-lg px-6"
+                  onClick={() => void submitAnswer()}
+                >
+                  <CircleStop data-icon="inline-start" />
+                  Trả lời xong
+                </Button>
+              </div>
             </div>
           )}
 

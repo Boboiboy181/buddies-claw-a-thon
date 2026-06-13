@@ -73,6 +73,12 @@ export class OrchestratorController {
     return { ok: true };
   }
 
+  @Post('repeat-question')
+  async repeatQuestion(@Param('id') id: string) {
+    await this.orchestrator.repeatQuestion(id);
+    return { ok: true };
+  }
+
   @Post('start-listening')
   async startListening(@Param('id') id: string, @Body() body: { questionId: string }) {
     if (!body?.questionId) throw new BadRequestException('questionId is required');

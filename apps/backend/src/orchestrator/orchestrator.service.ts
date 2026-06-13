@@ -222,6 +222,35 @@ export class InterviewOrchestratorService {
     });
   }
 
+  /** Re-plays the current question on candidate request ("repeat"). Reuses the
+   *  cached TTS audio and does not advance or penalize time — the answer timer
+   *  restarts when listening resumes after the replay. */
+  async repeatQuestion(interviewId: string) {
+    const interview = await this.getInterview(interviewId, { questions: { orderBy: { order: 'asc' } } });
+    const question = (interview as any).questions[interview.currentQuestionIndex];
+    if (!question) throw new BadRequestException('No current question to repeat');
+
+    await this.runOrFail(interviewId, async () => {
+      await this.prisma.interview.update({
+        where: { id: interviewId },
+        data: { state: $Enums.InterviewState.ASKING_QUESTION },
+      });
+      this.gateway.emitStateChange(interviewId, $Enums.InterviewState.ASKING_QUESTION, {
+        questionIndex: interview.currentQuestionIndex,
+        questionId: question.id,
+      });
+
+      const key = await this.ensureQuestionTts(interviewId, question);
+      const audioUrl = await this.storage.getSignedDownloadUrl(key);
+      this.gateway.emitAgentSpeak(interviewId, {
+        type: 'question',
+        text: question.text,
+        audioUrl,
+        questionId: question.id,
+      });
+    });
+  }
+
   // ── Giai đoạn 6: Start listening ────────────────────────────────────
 
   async startListening(interviewId: string, questionId: string) {
