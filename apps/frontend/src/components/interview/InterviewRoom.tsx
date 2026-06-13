@@ -23,6 +23,28 @@ interface Props {
   onCompleted: () => void;
 }
 
+/** Animated equalizer shown while the agent is speaking — a lightweight stand-in
+ *  for a talking avatar (no real lip-sync). */
+function SpeakingIndicator() {
+  return (
+    <div className="flex h-10 items-center gap-1" aria-hidden>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className="w-1.5 rounded-full bg-primary-foreground"
+          style={{
+            height: '100%',
+            transformOrigin: 'center',
+            animation: 'interview-eq 0.9s ease-in-out infinite',
+            animationDelay: `${i * 0.12}s`,
+          }}
+        />
+      ))}
+      <style>{'@keyframes interview-eq{0%,100%{transform:scaleY(0.25)}50%{transform:scaleY(1)}}'}</style>
+    </div>
+  );
+}
+
 export function InterviewRoom({ interview, onCompleted }: Props) {
   const [phase, setPhase] = useState<RoomPhase>('connecting');
   const [agentText, setAgentText] = useState('Đang kết nối với trợ lý phỏng vấn...');
@@ -304,7 +326,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
           <div
             className={`flex size-24 items-center justify-center rounded-full transition-colors ${
               phase === 'agent_speaking'
-                ? 'animate-pulse bg-primary text-primary-foreground'
+                ? 'bg-primary text-primary-foreground'
                 : phase === 'listening'
                   ? 'bg-emerald-600 text-white'
                   : 'bg-muted text-muted-foreground'
@@ -314,6 +336,8 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
               <Loader2 className="size-10 animate-spin" />
             ) : phase === 'listening' ? (
               <Mic className="size-10" />
+            ) : phase === 'agent_speaking' ? (
+              <SpeakingIndicator />
             ) : (
               <Bot className="size-10" />
             )}
