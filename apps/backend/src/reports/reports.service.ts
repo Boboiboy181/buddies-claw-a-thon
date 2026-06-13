@@ -1,7 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { $Enums } from '@prisma/client';
 import { LlmService } from '../llm/llm.service';
+import { MailService } from '../mail/mail.service';
+import { reportReady } from '../mail/mail.templates';
 
 @Injectable()
 export class ReportsService {
@@ -10,6 +13,8 @@ export class ReportsService {
   constructor(
     private prisma: PrismaService,
     private readonly llm: LlmService,
+    private readonly mail: MailService,
+    private readonly config: ConfigService,
   ) {}
 
   async findByInterview(interviewId: string) {
@@ -22,6 +27,7 @@ export class ReportsService {
       include: {
         candidate: true,
         job: true,
+        createdByHr: true,
         questions: { orderBy: { order: 'asc' } },
         answers: { include: { question: true } },
       },
@@ -140,6 +146,20 @@ Return JSON with this structure:
         where: { id: interviewId },
         data: { status: $Enums.InterviewStatus.REPORT_READY },
       });
+
+      // Notify the recruiter who created the interview that the report is ready.
+      // Best-effort: a mail failure must not fail report generation.
+      if (interview.createdByHr?.email) {
+        const base = this.config.get<string>('FRONTEND_URL', 'http://localhost:5173').replace(/\/+$/, '');
+        await this.mail.send({
+          to: interview.createdByHr.email,
+          ...reportReady({
+            candidateName: interview.candidate.fullName,
+            jobTitle: interview.job.title,
+            link: `${base}/hr/interviews/${interviewId}`,
+          }),
+        });
+      }
 
       return report;
     } catch (error) {
