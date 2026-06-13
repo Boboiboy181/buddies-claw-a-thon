@@ -142,6 +142,7 @@ model Interview {
   recordingId             String?
   recordingUrl            String?
   currentQuestionIndex    Int             @default(0)
+  expiresAt               DateTime?
   consentAcceptedAt       DateTime?
   startedAt               DateTime?
   endedAt                 DateTime?

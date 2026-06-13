@@ -18,6 +18,7 @@ export default function InterviewNew() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
   const { register, handleSubmit, watch, control } = useForm<Record<string, any>>({ defaultValues: { jobId: params.get('jobId') || '' } });
   const jobId = watch('jobId');
 
@@ -29,6 +30,7 @@ export default function InterviewNew() {
     onSuccess: (res) => {
       const link = `${window.location.origin}/interview/${res.accessToken}`;
       setCreatedLink(link);
+      setInviteEmailSent(Boolean(res.inviteEmailSent));
       toast.success('Interview created!');
     },
     onError: () => toast.error('Failed to create interview'),
@@ -41,7 +43,11 @@ export default function InterviewNew() {
           <div className="flex size-14 items-center justify-center rounded-lg bg-emerald-100 text-3xl text-emerald-700">✓</div>
           <div className="flex flex-col gap-1">
             <CardTitle className="text-2xl">Interview Created!</CardTitle>
-            <CardDescription>Share this link with the candidate to begin the session.</CardDescription>
+            <CardDescription>
+              {inviteEmailSent
+                ? 'An invitation email with this link has been sent to the candidate.'
+                : 'Email delivery is not configured — share this link with the candidate manually.'}
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

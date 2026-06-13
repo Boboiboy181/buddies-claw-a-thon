@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, GoneException, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { $Enums } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
+import { interviewInvite } from '../mail/mail.templates';
 import { QUEUE_REPORT_GENERATION, JOB_GENERATE_REPORT } from '../queue/queue.constants';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -14,8 +17,16 @@ export class InterviewsService {
 
   constructor(
     private prisma: PrismaService,
+    private config: ConfigService,
+    private mail: MailService,
     @InjectQueue(QUEUE_REPORT_GENERATION) private reportQueue: Queue,
   ) {}
+
+  /** Absolute candidate interview URL from the configured frontend origin. */
+  private candidateUrl(token: string): string {
+    const base = this.config.get<string>('FRONTEND_URL', 'http://localhost:5173').replace(/\/+$/, '');
+    return `${base}/interview/${token}`;
+  }
 
   async create(dto: CreateInterviewDto, userId: string) {
     // Resolve or create candidate
@@ -58,15 +69,19 @@ export class InterviewsService {
       if (qs) snapshotQuestions = qs.questions;
     }
 
+    const expiryDays = parseInt(this.config.get<string>('INVITE_EXPIRY_DAYS', '7'), 10);
+    const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+
     const interview = await this.prisma.interview.create({
       data: {
         candidateId,
         jobId: dto.jobId,
         questionSetId,
         questionSetSnapshotJson: snapshotQuestions,
-        status: $Enums.InterviewStatus.CREATED,
-        state: $Enums.InterviewState.INIT,
+        status: $Enums.InterviewStatus.INVITED,
+        state: $Enums.InterviewState.CONSENT_PENDING,
         accessToken: uuidv4(),
+        expiresAt,
         createdBy: userId,
         questions: {
           create: snapshotQuestions.map((q: any) => ({
@@ -84,10 +99,23 @@ export class InterviewsService {
       include: { candidate: true, job: true },
     });
 
+    // Best-effort invite e-mail — a mail failure must not fail interview creation.
+    const link = this.candidateUrl(interview.accessToken);
+    const emailed = await this.mail.send({
+      to: interview.candidate.email,
+      ...interviewInvite({
+        candidateName: interview.candidate.fullName,
+        jobTitle: interview.job.title,
+        link,
+        expiresAt: interview.expiresAt,
+      }),
+    });
+
     return {
       ...interview,
       accessToken: interview.accessToken,
       candidateLink: `/interview/${interview.accessToken}`,
+      inviteEmailSent: emailed,
     };
   }
 
@@ -132,6 +160,15 @@ export class InterviewsService {
       },
     });
     if (!interview) throw new NotFoundException('Interview not found');
+    // Reject expired invitations, but only before the interview has started —
+    // a candidate who began in time should never be locked out mid-session.
+    const notStarted =
+      interview.status === $Enums.InterviewStatus.CREATED ||
+      interview.status === $Enums.InterviewStatus.INVITED ||
+      interview.status === $Enums.InterviewStatus.CONSENT_ACCEPTED;
+    if (interview.expiresAt && interview.expiresAt < new Date() && notStarted) {
+      throw new GoneException('This interview invitation has expired');
+    }
     return interview;
   }
 
