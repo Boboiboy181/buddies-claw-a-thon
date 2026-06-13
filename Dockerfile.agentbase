@@ -1,0 +1,53 @@
+# Combined single-container image for AgentBase Runtime.
+# NestJS serves the built React SPA + /api/* + socket.io, all on port 8080,
+# with a liveness probe at GET /health. External Postgres/Redis/S3 are provided
+# via env vars at runtime (AgentBase does not host data stores).
+
+# ---- Build stage: build both frontend and backend ----
+FROM node:20-alpine AS build
+WORKDIR /app
+RUN npm install -g pnpm
+
+# Install all workspace deps (frozen) using only manifests for better caching.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/backend/package.json ./apps/backend/package.json
+COPY apps/frontend/package.json ./apps/frontend/package.json
+RUN pnpm install --frozen-lockfile
+
+# Build frontend (Vite -> apps/frontend/dist)
+COPY apps/frontend ./apps/frontend
+RUN pnpm --filter frontend build
+
+# Build backend (Prisma client + Nest -> apps/backend/dist/src/main.js)
+COPY apps/backend ./apps/backend
+RUN pnpm --filter backend prisma:generate \
+ && pnpm --filter backend build
+
+# ---- Runtime stage ----
+FROM node:20-alpine AS runner
+WORKDIR /app
+RUN npm install -g pnpm
+
+# Bring over installed deps (incl. Prisma CLI/client) and build artifacts.
+# pnpm workspaces give each package its own symlinked node_modules (with the
+# package's .bin), so copy BOTH the root store and the backend's node_modules.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
+COPY --from=build /app/apps/backend/dist ./apps/backend/dist
+COPY --from=build /app/apps/backend/prisma ./apps/backend/prisma
+# Prisma 7 reads the datasource URL from prisma.config.ts at migrate/deploy time.
+COPY --from=build /app/apps/backend/prisma.config.ts ./apps/backend/prisma.config.ts
+# Static SPA served by NestJS (matches CLIENT_DIST_PATH below).
+COPY --from=build /app/apps/frontend/dist ./client
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV CLIENT_DIST_PATH=/app/client
+
+EXPOSE 8080
+
+# Apply migrations, then start. DATABASE_URL must be reachable at boot.
+WORKDIR /app/apps/backend
+CMD ["sh", "-c", "pnpm prisma:deploy && node dist/main.js"]

@@ -23,7 +23,7 @@ pnpm dev                                               # backend :3001, frontend
 
 Open **http://localhost:5173**. Health and API docs:
 - API docs (Swagger): http://localhost:3001/api/docs
-- Health: http://localhost:3001/api/health
+- Health: http://localhost:3001/health
 
 ---
 
@@ -136,7 +136,7 @@ The candidate opens the link you sent (`/interview/<token>`) — **no login requ
 | Questions / report fail to generate | LLM env not set — check `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` in `apps/backend/.env`. |
 | No audio on questions / no transcript | TTS/STT not configured — set `TTS_MODEL` / `STT_MODEL` / `STT_BASE_URL`, or the OpenAI fallback keys. |
 | Recording never appears | LiveKit egress needs **publicly reachable** S3 — local MinIO won't work for recordings. |
-| `/api/health` shows `db` or `redis` `down` | Infra not up — run `docker compose -f docker-compose.dev.yml up -d`. |
+| `/health` shows `db` or `redis` `down` | Infra not up — run `docker compose -f docker-compose.dev.yml up -d`. |
 
 ---
 

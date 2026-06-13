@@ -12,6 +12,7 @@ out
 .env
 .env.local
 .env.*.local
+.env.agentbase
 
 # Turbo cache
 .turbo
@@ -36,3 +37,5 @@ coverage
 # pnpm lockfile from nested packages
 apps/frontend/package-lock.json
 apps/backend/package-lock.json
+.greennode.json
+.agentbase/

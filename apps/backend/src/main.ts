@@ -16,7 +16,9 @@ async function bootstrap() {
   // Strips @Exclude()-decorated fields (e.g. password) from any class-instance responses.
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useWebSocketAdapter(new IoAdapter(app));
-  app.setGlobalPrefix('api');
+  // All REST routes live under /api, EXCEPT health — AgentBase Runtime requires
+  // a liveness probe at the root path GET /health.
+  app.setGlobalPrefix('api', { exclude: ['health'] });
 
   const config = new DocumentBuilder()
     .setTitle('HR Interview Platform API')

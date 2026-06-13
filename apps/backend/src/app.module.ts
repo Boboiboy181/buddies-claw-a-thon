@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { join } from 'node:path';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './prisma/prisma.module';
@@ -23,6 +25,14 @@ import { HealthModule } from './health/health.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    // Serve the built React SPA from the same process (combined single-container
+    // deploy, e.g. AgentBase). CLIENT_DIST_PATH overrides the location; defaults to
+    // ../../client relative to the compiled backend (where the Docker image copies it).
+    // API, health, and socket.io paths are excluded so they fall through to Nest.
+    ServeStaticModule.forRoot({
+      rootPath: process.env.CLIENT_DIST_PATH || join(__dirname, '..', '..', 'client'),
+      exclude: ['/api/{*path}', '/health', '/socket.io/{*path}'],
+    }),
     // Global rate limit: 100 requests / minute / IP. Stricter per-route limits
     // (e.g. login) are applied with @Throttle on the controller.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),

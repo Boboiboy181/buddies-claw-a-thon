@@ -116,7 +116,7 @@ Backend-only (`apps/backend/`):
 ## API documentation
 
 - **Swagger UI:** http://localhost:3001/api/docs
-- **Health check:** http://localhost:3001/api/health → reports `db` + `redis` status
+- **Health check:** http://localhost:3001/health → reports `db` + `redis` status (root path, for container liveness probes)
 
 REST is served under `/api`; the WebSocket hub uses socket.io.
 
@@ -157,7 +157,7 @@ Full list in [`apps/backend/.env.example`](./apps/backend/.env.example). Key one
 ## Operational hardening
 
 - **Rate limiting** (`@nestjs/throttler`): 100 req/min globally, 5 req/min on `/api/auth/login`.
-- **Health checks** (`@nestjs/terminus`): `/api/health` pings Postgres and Redis.
+- **Health checks** (`@nestjs/terminus`): `GET /health` (root path) pings Postgres and Redis.
 - **Validation + serialization**: global `ValidationPipe` (whitelist + transform) and
   `ClassSerializerInterceptor`.
 
