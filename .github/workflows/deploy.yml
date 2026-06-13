@@ -1,0 +1,138 @@
+name: Deploy to AgentBase
+
+# Pushing to main builds the combined image, pushes it to the VNG Container
+# Registry, and updates the AgentBase Custom Agent runtime to the new version.
+#
+# Required GitHub repo secrets (Settings → Secrets and variables → Actions → Secrets):
+#   GREENNODE_CLIENT_ID      IAM service-account client id
+#   GREENNODE_CLIENT_SECRET  IAM service-account client secret
+#   AGENTBASE_ENV            Full contents of .env.agentbase (DB url, LLM key, vStorage keys, JWT, …)
+#
+# Required repo variables (Settings → Secrets and variables → Actions → Variables):
+#   AGENTBASE_RUNTIME_ID     e.g. runtime-6860f17a-df75-4ff0-bcbe-7978ced5b4be
+#   CR_REGISTRY              vcr.vngcloud.vn
+#   CR_REPO                  111480-abp111721
+#   AGENTBASE_FLAVOR         runtime-s2-general-2x4   (optional; defaults below)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # allow manual re-deploys from the Actions tab
+
+concurrency:
+  group: agentbase-deploy
+  cancel-in-progress: false
+
+env:
+  IAM_TOKEN_URL: https://iam.api.vngcloud.vn/accounts-api/v2/auth/token
+  RUNTIME_URL: https://agentbase.api.vngcloud.vn/runtime/agent-runtimes
+  CR_API_URL: https://agentbase.api.vngcloud.vn/cr/api/v1
+  CR_REGISTRY: ${{ vars.CR_REGISTRY }}
+  CR_REPO: ${{ vars.CR_REPO }}
+  FLAVOR: ${{ vars.AGENTBASE_FLAVOR || 'runtime-s2-general-2x4' }}
+  RUNTIME_ID: ${{ vars.AGENTBASE_RUNTIME_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest   # amd64 host → native image build, no emulation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get IAM access token
+        run: |
+          set -euo pipefail
+          TOKEN=$(curl -fsS -X POST "$IAM_TOKEN_URL" \
+            -u "${{ secrets.GREENNODE_CLIENT_ID }}:${{ secrets.GREENNODE_CLIENT_SECRET }}" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=client_credentials" | jq -r '.access_token')
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then echo "Failed to get IAM token"; exit 1; fi
+          echo "::add-mask::$TOKEN"
+          echo "TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Fetch Container Registry credentials
+        run: |
+          set -euo pipefail
+          CRED=$(curl -fsS -H "Authorization: Bearer $TOKEN" "$CR_API_URL/registry-credential")
+          CR_USER=$(echo "$CRED" | jq -r '.username')
+          CR_SECRET=$(echo "$CRED" | jq -r '.secret')
+          if [ -z "$CR_USER" ] || [ "$CR_USER" = "null" ] || [ -z "$CR_SECRET" ] || [ "$CR_SECRET" = "null" ]; then
+            echo "Failed to read CR credentials"; exit 1
+          fi
+          echo "::add-mask::$CR_SECRET"
+          echo "CR_USER=$CR_USER" >> "$GITHUB_ENV"
+          echo "CR_SECRET=$CR_SECRET" >> "$GITHUB_ENV"
+
+      - name: Docker login to CR
+        run: echo "$CR_SECRET" | docker login "$CR_REGISTRY" -u "$CR_USER" --password-stdin
+
+      - name: Build & push image
+        run: |
+          set -euo pipefail
+          IMAGE="$CR_REGISTRY/$CR_REPO/clawathon:${GITHUB_SHA::12}"
+          LATEST="$CR_REGISTRY/$CR_REPO/clawathon:latest"
+          docker build --platform linux/amd64 -f Dockerfile.agentbase -t "$IMAGE" -t "$LATEST" .
+          docker push "$IMAGE"
+          docker push "$LATEST"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Build runtime update payload
+        run: |
+          set -euo pipefail
+          # Materialize the env file from the secret and convert KEY=VALUE lines to a JSON object.
+          printf '%s\n' "${{ secrets.AGENTBASE_ENV }}" > .env.agentbase
+          ENV_JSON=$(jq -Rn '
+            [ inputs
+              | select(test("^[A-Za-z_][A-Za-z0-9_]*="))      # skip comments / blank lines
+              | capture("^(?<k>[^=]+)=(?<v>.*)$") ]
+            | map({(.k): .v}) | add // {}' < .env.agentbase)
+          jq -n \
+            --arg imageUrl "$IMAGE" \
+            --arg flavorId "$FLAVOR" \
+            --argjson env "$ENV_JSON" \
+            --arg u "$CR_USER" \
+            --arg p "$CR_SECRET" \
+            '{imageUrl: $imageUrl, flavorId: $flavorId, description: "",
+              command: [], args: [],
+              environmentVariables: $env,
+              autoscaling: {minReplicas: 1, maxReplicas: 1, cpuUtilization: 50, memoryUtilization: 50},
+              imageAuth: {enabled: true, username: $u, password: $p}}' > /tmp/payload.json
+          rm -f .env.agentbase
+          echo "Payload built ($(jq '.environmentVariables | length' /tmp/payload.json) env vars)."
+
+      - name: Update AgentBase runtime
+        run: |
+          set -euo pipefail
+          CODE=$(curl -s -o /tmp/resp.json -w '%{http_code}' -X PATCH "$RUNTIME_URL/$RUNTIME_ID" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            --data @/tmp/payload.json)
+          echo "PATCH HTTP $CODE"
+          jq '{id, name, status}' /tmp/resp.json || cat /tmp/resp.json
+          [ "$CODE" -ge 200 ] && [ "$CODE" -lt 300 ] || { echo "Update failed"; exit 1; }
+
+      - name: Wait for ACTIVE
+        run: |
+          set -euo pipefail
+          sleep 15
+          for i in $(seq 1 40); do
+            ST=$(curl -fsS -H "Authorization: Bearer $TOKEN" "$RUNTIME_URL/$RUNTIME_ID" | jq -r '.status')
+            echo "[$i] status: $ST"
+            case "$ST" in
+              ACTIVE) [ "$i" -ge 3 ] && break ;;
+              ERROR|FAILED) echo "Runtime entered $ST"; exit 1 ;;
+            esac
+            sleep 15
+          done
+
+      - name: Health check
+        run: |
+          set -euo pipefail
+          EP=$(curl -fsS -H "Authorization: Bearer $TOKEN" "$RUNTIME_URL/$RUNTIME_ID/endpoints" \
+            | jq -r '(.listData // .data // [])[] | select(.name=="DEFAULT") | .url')
+          echo "Endpoint: $EP"
+          for i in $(seq 1 10); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' "$EP/health" || echo 000)
+            echo "[$i] /health -> $CODE"
+            [ "$CODE" = "200" ] && { echo "Deploy healthy: $EP"; exit 0; }
+            sleep 10
+          done
+          echo "Health check did not return 200"; exit 1

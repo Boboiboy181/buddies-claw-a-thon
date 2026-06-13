@@ -3,6 +3,10 @@
 This app deploys as a **Custom Agent** runtime: one container serving the React SPA +
 `/api/*` + socket.io on **port 8080**, with a liveness probe at **`GET /health`**.
 
+> **CI/CD (GitHub Actions):** pushing to **`main`** auto-builds, pushes, and redeploys to
+> AgentBase. **`dev`** runs CI only (lint + typecheck + build). See
+> [CI/CD setup](#cicd-github-actions) below. Manual steps remain documented here as a fallback.
+
 AgentBase does **not** provide Postgres, Redis, or S3 — you bring those (managed services
 or a vServer) and point env vars at them. See [`.env.agentbase.example`](../.env.agentbase.example).
 
@@ -90,3 +94,48 @@ cd apps/backend && DATABASE_URL="<external-db-url>" pnpm prisma:seed
 - **Image is ~941 MB** (full `node_modules` for a reliable Prisma client). Slim later with a prod-only install if needed.
 - **Recordings** (LiveKit egress) need publicly-reachable S3 — private MinIO won't work; the core interview→report flow does.
 - Monitor logs/metrics with the `agentbase-monitor` skill after deploy.
+
+---
+
+## CI/CD (GitHub Actions)
+
+Two workflows in `.github/workflows/`:
+
+- **`ci.yml`** — on push to `dev` and PRs into `main`: install, Prisma generate, build (typechecks both apps), lint.
+- **`deploy.yml`** — on push to `main` (or manual `workflow_dispatch`): get IAM token → fetch CR credentials → `docker login` → build `linux/amd64` image → push to CR → `PATCH` the runtime → wait for `ACTIVE` → `/health` check. GitHub runners are amd64, so the build is native (fast).
+
+### Branch model
+- **`dev`** — local development; CI validates each push.
+- **`main`** — the deployed branch; every push redeploys the live AgentBase runtime.
+
+```
+dev  ──(PR, CI passes)──▶  main  ──(deploy.yml)──▶  AgentBase runtime "clawathon"
+```
+
+### One-time setup on GitHub
+Repo → **Settings → Secrets and variables → Actions**.
+
+**Secrets:**
+| Name | Value |
+|------|-------|
+| `GREENNODE_CLIENT_ID` | IAM service-account client id |
+| `GREENNODE_CLIENT_SECRET` | IAM service-account client secret |
+| `AGENTBASE_ENV` | The **entire contents** of your `.env.agentbase` (DB URL, LLM key, vStorage keys, JWT, …) |
+
+**Variables:**
+| Name | Value |
+|------|-------|
+| `AGENTBASE_RUNTIME_ID` | `runtime-6860f17a-df75-4ff0-bcbe-7978ced5b4be` |
+| `CR_REGISTRY` | `vcr.vngcloud.vn` |
+| `CR_REPO` | `111480-abp111721` |
+| `AGENTBASE_FLAVOR` | `runtime-s2-general-2x4` (optional) |
+
+> `AGENTBASE_ENV` carries secrets — keep it only in GitHub Secrets, never committed (`.env.agentbase` is git-ignored). Update this secret whenever the env changes (new LLM key, DB host, etc.).
+
+### Create the branches
+```bash
+git checkout main
+git checkout -b dev        # local work happens here
+git push -u origin dev
+# merge dev → main (via PR) to trigger a deploy
+```
