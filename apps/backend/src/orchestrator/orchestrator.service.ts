@@ -10,6 +10,7 @@ import { StorageService } from '../storage/storage.service';
 import { DailyService } from '../daily/daily.service';
 import { LivekitService } from '../livekit/livekit.service';
 import { InterviewGateway } from '../gateway/interview.gateway';
+import { ConversationService } from './conversation.service';
 import { QUEUE_REPORT_GENERATION, JOB_GENERATE_REPORT } from '../queue/queue.constants';
 
 const DEFAULT_GREETING_VI =
@@ -32,6 +33,7 @@ export class InterviewOrchestratorService {
     private daily: DailyService,
     private livekit: LivekitService,
     private gateway: InterviewGateway,
+    private conversation: ConversationService,
     private config: ConfigService,
     @InjectQueue(QUEUE_REPORT_GENERATION) private reportQueue: Queue,
   ) {}
@@ -294,18 +296,25 @@ export class InterviewOrchestratorService {
       const language = this.config.get('AGENT_LANGUAGE', 'vi');
       const transcript = await this.stt.transcribe(audioBuffer, `answer.${ext}`, language);
 
+      // A recording for a questionId that already has an answer is a reply to a
+      // follow-up — append it to the running dialogue rather than overwriting.
+      const existing = await this.prisma.interviewAnswer.findUnique({ where: { questionId } });
+      const mergedTranscript = existing?.transcript
+        ? `${existing.transcript}\n[Ứng viên]: ${transcript}`
+        : transcript;
+
       await this.prisma.interviewAnswer.upsert({
         where: { questionId },
         create: {
           interviewId,
           questionId,
           answerAudioUrl: key,
-          transcript,
+          transcript: mergedTranscript,
           durationSeconds: options.durationSeconds,
         },
         update: {
           answerAudioUrl: key,
-          transcript,
+          transcript: mergedTranscript,
           durationSeconds: options.durationSeconds,
         },
       });
@@ -322,10 +331,39 @@ export class InterviewOrchestratorService {
   // ── Giai đoạn 8: Advance ────────────────────────────────────────────
 
   async advanceInterview(interviewId: string) {
-    const interview = await this.getInterview(interviewId, { questions: { orderBy: { order: 'asc' } } });
-    const nextIndex = interview.currentQuestionIndex + 1;
-    const hasMore = nextIndex < (interview as any).questions.length;
+    const interview = await this.getInterview(interviewId, {
+      questions: { orderBy: { order: 'asc' } },
+      answers: true,
+      job: true,
+    });
+    const questions = (interview as any).questions;
+    const currentIndex = interview.currentQuestionIndex;
+    const currentQ = questions[currentIndex];
+    const maxFollowUps = parseInt(this.config.get('INTERVIEW_MAX_FOLLOWUPS', '2'), 10);
 
+    // Conversational turn: let the agent probe the current answer with a
+    // follow-up before moving on. Capped per question; disabled when max is 0.
+    if (maxFollowUps > 0 && currentQ) {
+      const answer = (interview as any).answers.find((a: any) => a.questionId === currentQ.id);
+      if (answer && (answer.followUpCount ?? 0) < maxFollowUps) {
+        const decision = await this.conversation.nextTurn({
+          jobTitle: (interview as any).job.title,
+          jdRawText: (interview as any).job.jdRawText ?? '',
+          questionText: currentQ.text,
+          answerSoFar: answer.transcript ?? '',
+          followUpsAsked: answer.followUpCount ?? 0,
+          maxFollowUps,
+          language: this.config.get('AGENT_LANGUAGE', 'vi'),
+        });
+        if (decision.action === 'follow_up' && decision.say) {
+          await this.emitFollowUp(interviewId, currentQ.id, decision.say, answer.followUpCount ?? 0);
+          return { done: false, followUp: true, nextQuestionIndex: currentIndex };
+        }
+      }
+    }
+
+    const nextIndex = currentIndex + 1;
+    const hasMore = nextIndex < questions.length;
     if (hasMore) {
       await this.askQuestion(interviewId, nextIndex);
       return { done: false, nextQuestionIndex: nextIndex };
@@ -337,6 +375,35 @@ export class InterviewOrchestratorService {
     );
     await this.finishInterview(interviewId);
     return { done: true, nextQuestionIndex: null };
+  }
+
+  /** Speaks an improvised follow-up for the current question and records it in
+   *  the dialogue. The candidate's reply (next process-answer) appends to the
+   *  same answer, so the report sees the full exchange. */
+  private async emitFollowUp(interviewId: string, questionId: string, say: string, currentCount: number) {
+    await this.runOrFail(interviewId, async () => {
+      const existing = await this.prisma.interviewAnswer.findUnique({ where: { questionId } });
+      const transcript = existing?.transcript
+        ? `${existing.transcript}\n[Phỏng vấn viên hỏi thêm]: ${say}`
+        : `[Phỏng vấn viên hỏi thêm]: ${say}`;
+      await this.prisma.interviewAnswer.update({
+        where: { questionId },
+        data: { transcript, followUpCount: currentCount + 1 },
+      });
+
+      await this.prisma.interview.update({
+        where: { id: interviewId },
+        data: { state: $Enums.InterviewState.ASKING_QUESTION },
+      });
+      this.gateway.emitStateChange(interviewId, $Enums.InterviewState.ASKING_QUESTION, { questionId });
+
+      const { extension, contentType } = this.tts.audioFormat;
+      const key = `interviews/${interviewId}/tts/followup-${questionId}-${currentCount + 1}.${extension}`;
+      const buffer = await this.tts.synthesize(say);
+      await this.storage.uploadBuffer(buffer, key, contentType);
+      const audioUrl = await this.storage.getSignedDownloadUrl(key);
+      this.gateway.emitAgentSpeak(interviewId, { type: 'question', text: say, audioUrl, questionId });
+    });
   }
 
   /** Synthesizes and emits the agent's closing thank-you message (type 'closing'). */

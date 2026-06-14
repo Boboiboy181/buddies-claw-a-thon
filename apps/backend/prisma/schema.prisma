@@ -220,6 +220,7 @@ model InterviewAnswer {
   answerVideoUrl  String?
   transcript      String?
   durationSeconds Int?
+  followUpCount   Int      @default(0)
   analysisJson    Json?
   createdAt       DateTime @default(now())
 
