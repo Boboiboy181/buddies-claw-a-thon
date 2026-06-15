@@ -23,7 +23,7 @@ const IN_PROGRESS_STATES = [
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4 sm:p-6">
-      <div className="flex w-full max-w-6xl flex-col items-center gap-6">{children}</div>
+      <div className="flex w-full max-w-7xl flex-col items-center gap-6">{children}</div>
     </div>
   );
 }
@@ -133,7 +133,7 @@ export default function CandidateInterview() {
       <div className="text-center">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-sm text-muted-foreground shadow-sm">
           <ShieldCheck className="text-primary" />
-          Phòng phỏng vấn bảo mật
+          Secure interview room
         </div>
         <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
           AI Interview{interview?.job?.title ? ` — ${interview.job.title}` : ''}

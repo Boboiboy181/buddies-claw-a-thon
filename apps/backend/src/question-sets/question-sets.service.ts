@@ -145,6 +145,18 @@ export class QuestionSetsService {
     });
   }
 
+  async updateStatus(questionSetId: string, status: $Enums.QuestionSetStatus) {
+    // Activating must archive the other active set for the same job, so reuse activate().
+    if (status === $Enums.QuestionSetStatus.ACTIVE) {
+      return this.activate(questionSetId);
+    }
+    await this.findOne(questionSetId);
+    return this.prisma.questionSet.update({
+      where: { id: questionSetId },
+      data: { status },
+    });
+  }
+
   async getActiveForJob(jobId: string) {
     return this.prisma.questionSet.findFirst({
       where: { jobId, status: $Enums.QuestionSetStatus.ACTIVE },

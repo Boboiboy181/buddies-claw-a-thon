@@ -9,6 +9,9 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageBlock } from '@/components/page-block';
 import { RichTextEditor, isRichTextEmpty } from '@/components/ui/rich-text-editor';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const JOB_STATUSES = ['DRAFT', 'ACTIVE', 'ARCHIVED'] as const;
 
 export default function JobDetail() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -34,6 +37,16 @@ export default function JobDetail() {
     setJdDraft(job?.jdRawText || '');
     setEditingJd(true);
   };
+
+  const updateStatus = useMutation({
+    mutationFn: (status: string) => api.patch(`/jobs/${jobId}`, { status }).then(r => r.data),
+    onSuccess: () => {
+      toast.success('Job status updated');
+      qc.invalidateQueries({ queryKey: ['job', jobId] });
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: () => toast.error('Failed to update status'),
+  });
   const { data: questionSets } = useQuery({ queryKey: ['question-sets', jobId], queryFn: () => api.get(`/jobs/${jobId}/question-sets`).then(r => r.data) });
   const { data: interviews } = useQuery({ queryKey: ['job-interviews', jobId], queryFn: () => api.get(`/interviews?jobId=${jobId}`).then(r => r.data) });
 
@@ -63,7 +76,16 @@ export default function JobDetail() {
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-3">
             <h1 className="font-heading text-3xl font-semibold tracking-tight">{job?.title}</h1>
-            <Badge variant={job?.status?.toUpperCase() === 'ACTIVE' ? 'success' : 'warning'}>{job?.status}</Badge>
+            <Select value={job?.status} onValueChange={(v) => updateStatus.mutate(v)} disabled={updateStatus.isPending}>
+              <SelectTrigger className="h-8 w-auto gap-2 rounded-full border-none bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:opacity-60" aria-label="Job status">
+                <Badge variant={job?.status?.toUpperCase() === 'ACTIVE' ? 'success' : 'warning'}>{job?.status}</Badge>
+              </SelectTrigger>
+              <SelectContent>
+                {JOB_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <p className="text-muted-foreground">{[job?.department, job?.level, job?.location].filter(Boolean).join(' · ')}</p>
         </div>
@@ -71,9 +93,15 @@ export default function JobDetail() {
           <Button onClick={generateQuestions} disabled={generating} variant="secondary" size="lg" className="h-10 rounded-lg">
             <Wand2 data-icon="inline-start" /> {generating ? 'Generating...' : 'Generate Questions'}
           </Button>
-          <Link to={`/hr/interviews/new?jobId=${jobId}`} className={buttonVariants({ size: 'lg', className: 'h-10 rounded-lg px-4 shadow-sm shadow-primary/15' })}>
-            <Plus data-icon="inline-start" /> New Interview
-          </Link>
+          {job?.status?.toUpperCase() === 'ACTIVE' ? (
+            <Link to={`/hr/interviews/new?jobId=${jobId}`} className={buttonVariants({ size: 'lg', className: 'h-10 rounded-lg px-4 shadow-sm shadow-primary/15' })}>
+              <Plus data-icon="inline-start" /> New Interview
+            </Link>
+          ) : (
+            <Button size="lg" disabled className="h-10 rounded-lg px-4" title="Only active jobs can be interviewed">
+              <Plus data-icon="inline-start" /> New Interview
+            </Button>
+          )}
         </div>
       </div>
 

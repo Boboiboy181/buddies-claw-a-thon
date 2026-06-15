@@ -12,10 +12,10 @@ import { PageBlock } from '@/components/page-block';
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <PageBlock>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xl leading-8">{title}</CardTitle>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="space-y-4">{children}</CardContent>
     </PageBlock>
   );
 }
@@ -231,27 +231,84 @@ export default function InterviewDetail() {
                   )}
 
                   {report.qaAnalysisJson?.map((qa: any, idx: number) => (
-                    <Section key={idx} title={`Q${idx+1}: ${qa.question}`}>
-                      <div className="mb-4 rounded-lg bg-muted/40 p-4">
-                        <div className="mb-1 flex items-center justify-between">
-                          <p className="text-muted-foreground text-xs font-semibold tracking-[0.18em]">ANSWER</p>
-                          {qa.relevance && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-foreground/70">{String(qa.relevance).replace(/_/g, ' ')}</span>}
+                    <PageBlock key={idx} className="overflow-hidden">
+                      <CardHeader className="border-b bg-muted/20 pb-4">
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                            Q{idx + 1}
+                          </span>
+                          <CardTitle className="text-lg leading-7 text-foreground sm:text-xl sm:leading-8">
+                            {qa.question}
+                          </CardTitle>
                         </div>
-                        <p className="text-sm leading-7 text-foreground/85">{qa.answerTranscript || '— No answer recorded —'}</p>
-                      </div>
-                      {qa.answerSummary && <p className="mb-3 text-sm text-foreground/80"><span className="font-semibold">Summary: </span>{qa.answerSummary}</p>}
-                      <div className="mb-3 grid gap-3 md:grid-cols-2">
-                        {qa.strengths?.length > 0 && <div><p className="mb-1 text-xs font-semibold tracking-[0.18em] text-emerald-700">STRENGTHS</p><ul className="flex list-disc flex-col gap-1 pl-5">{qa.strengths.map((s: string, i: number) => <li key={i} className="text-xs text-foreground/80">{s}</li>)}</ul></div>}
-                        {qa.concerns?.length > 0 && <div><p className="mb-1 text-xs font-semibold tracking-[0.18em] text-red-600">CONCERNS</p><ul className="flex list-disc flex-col gap-1 pl-5">{qa.concerns.map((c: string, i: number) => <li key={i} className="text-xs text-foreground/80">{c}</li>)}</ul></div>}
-                      </div>
-                      {qa.evidenceQuotes?.length > 0 && (
-                        <div className="mb-3">
-                          <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-foreground/60">EVIDENCE (verbatim)</p>
-                          <ul className="flex flex-col gap-1">{qa.evidenceQuotes.map((q: string, i: number) => <li key={i} className="border-l-2 border-muted pl-3 text-xs italic text-foreground/70">"{q}"</li>)}</ul>
+                      </CardHeader>
+                      <CardContent className="space-y-5 pt-5">
+                        <div className="rounded-lg bg-muted/40 p-5">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-muted-foreground text-xs font-semibold tracking-[0.18em]">ANSWER</p>
+                            {qa.relevance && (
+                              <span className="rounded-full bg-background px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground/70 shadow-sm">
+                                {String(qa.relevance).replace(/_/g, ' ')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-base leading-8 text-foreground/85">
+                            {qa.answerTranscript || '- No answer recorded -'}
+                          </p>
                         </div>
-                      )}
-                      {qa.score != null && <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Score:</span><span className="text-lg font-semibold">{qa.score}/10</span>{qa.scoreReason && <span className="text-xs text-muted-foreground">— {qa.scoreReason}</span>}</div>}
-                    </Section>
+
+                        {qa.answerSummary && (
+                          <p className="text-sm leading-7 text-foreground/80">
+                            <span className="font-semibold text-foreground">Summary: </span>
+                            {qa.answerSummary}
+                          </p>
+                        )}
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {qa.strengths?.length > 0 && (
+                            <div>
+                              <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-emerald-700">STRENGTHS</p>
+                              <ul className="flex list-disc flex-col gap-2 pl-5">
+                                {qa.strengths.map((s: string, i: number) => (
+                                  <li key={i} className="text-sm leading-6 text-foreground/80">{s}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {qa.concerns?.length > 0 && (
+                            <div>
+                              <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-red-600">CONCERNS</p>
+                              <ul className="flex list-disc flex-col gap-2 pl-5">
+                                {qa.concerns.map((c: string, i: number) => (
+                                  <li key={i} className="text-sm leading-6 text-foreground/80">{c}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        {qa.evidenceQuotes?.length > 0 && (
+                          <div>
+                            <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-foreground/60">EVIDENCE (verbatim)</p>
+                            <ul className="flex flex-col gap-2">
+                              {qa.evidenceQuotes.map((q: string, i: number) => (
+                                <li key={i} className="border-l-2 border-muted py-1 pl-3 text-sm italic leading-6 text-foreground/70">
+                                  "{q}"
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {qa.score != null && (
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg bg-background px-3 py-2">
+                            <span className="text-xs text-muted-foreground">Score:</span>
+                            <span className="text-lg font-semibold">{qa.score}/10</span>
+                            {qa.scoreReason && <span className="text-sm leading-6 text-muted-foreground">{qa.scoreReason}</span>}
+                          </div>
+                        )}
+                      </CardContent>
+                    </PageBlock>
                   ))}
                 </>
               ) : (

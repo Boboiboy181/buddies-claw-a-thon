@@ -20,39 +20,39 @@ export function ConsentScreen({ interview, onAccept, submitting }: Props) {
         <div className="mb-2 flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <ShieldCheck />
         </div>
-        <CardTitle className="text-2xl">Phỏng vấn AI — {interview.job.title}</CardTitle>
+        <CardTitle className="text-2xl">AI Interview — {interview.job.title}</CardTitle>
         <CardDescription>
-          Xin chào {interview.candidate.fullName}, bạn được mời tham gia buổi phỏng vấn tự động với trợ lý AI.
+          Hi {interview.candidate.fullName}, you've been invited to an automated interview with our AI assistant.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <ul className="grid gap-3 text-sm text-foreground">
+        <ul className="grid gap-3 text-sm leading-relaxed text-foreground">
           <li className="flex items-start gap-3 rounded-lg border bg-muted/35 p-3">
             <Mic className="mt-0.5 shrink-0 text-primary" />
-            Trợ lý AI sẽ đọc lần lượt {interview.questions.length} câu hỏi. Bạn trả lời bằng giọng nói sau khi nghe xong mỗi câu.
+            <span>The AI assistant will read out {interview.questions.length} questions one by one. Answer by voice after each question.</span>
           </li>
           <li className="flex items-start gap-3 rounded-lg border bg-muted/35 p-3">
             <Video className="mt-0.5 shrink-0 text-primary" />
-            Buổi phỏng vấn sẽ được <strong>ghi âm và ghi hình</strong> để phục vụ việc đánh giá. Câu trả lời được chuyển thành văn bản tự động.
+            <span>The session is recorded (audio and video) for evaluation, and your answers are automatically transcribed.</span>
           </li>
           <li className="flex items-start gap-3 rounded-lg border bg-muted/35 p-3">
             <Clock className="mt-0.5 shrink-0 text-primary" />
-            Thời lượng dự kiến khoảng {estimatedMinutes} phút. Hãy chuẩn bị môi trường yên tĩnh và kết nối mạng ổn định.
+            <span>The interview takes about {estimatedMinutes} minutes. Please find a quiet spot with a stable internet connection.</span>
           </li>
         </ul>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-4 text-sm text-muted-foreground">
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-4 text-sm leading-relaxed text-muted-foreground">
           <input
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
             className="mt-0.5 size-4 accent-primary"
           />
-          Tôi đồng ý tham gia phỏng vấn và cho phép ghi âm, ghi hình, xử lý dữ liệu câu trả lời của tôi cho mục đích tuyển dụng.
+          <span>I agree to take part in this interview and consent to the audio and video recording and processing of my answers for recruitment purposes.</span>
         </label>
 
         <Button className="h-11 w-full rounded-lg" disabled={!agreed || submitting} onClick={onAccept}>
-          {submitting ? 'Đang xác nhận...' : 'Đồng ý và tiếp tục'}
+          {submitting ? 'Confirming...' : 'Agree and continue'}
         </Button>
       </CardContent>
     </Card>

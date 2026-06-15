@@ -68,7 +68,7 @@ export default function InterviewNew() {
 
   const cvText = watch('candidate.cvText');
 
-  const { data: jobs } = useQuery({ queryKey: ['jobs'], queryFn: () => api.get('/jobs').then(r => r.data) });
+  const { data: jobs } = useQuery({ queryKey: ['jobs', 'ACTIVE'], queryFn: () => api.get('/jobs?status=ACTIVE').then(r => r.data) });
   const { data: qSets } = useQuery({ queryKey: ['question-sets', jobId], queryFn: () => api.get(`/jobs/${jobId}/question-sets`).then(r => r.data), enabled: !!jobId });
 
   const mutation = useMutation({
@@ -240,14 +240,18 @@ export default function InterviewNew() {
                 render={({ field }) => (
                   <Select value={field.value || null} onValueChange={(value) => field.onChange(value ?? '')}>
                     <SelectTrigger id="jobId">
-                      <SelectValue placeholder="Select job" />
+                      <SelectValue placeholder="Select job">
+                        {jobs?.find((j: any) => j.id === field.value)?.title}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {jobs?.map((j: any) => (
+                      {jobs?.length ? jobs.map((j: any) => (
                         <SelectItem key={j.id} value={j.id}>
                           {j.title}
                         </SelectItem>
-                      ))}
+                      )) : (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">No active jobs available</div>
+                      )}
                     </SelectContent>
                   </Select>
                 )}
@@ -262,7 +266,9 @@ export default function InterviewNew() {
                   render={({ field }) => (
                     <Select value={field.value || null} onValueChange={(value) => field.onChange(value ?? '')}>
                     <SelectTrigger id="questionSetId">
-                      <SelectValue placeholder="Use active question set" />
+                      <SelectValue placeholder="Use active question set">
+                        {field.value ? qSets?.find((s: any) => s.id === field.value)?.name : undefined}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Use active question set</SelectItem>

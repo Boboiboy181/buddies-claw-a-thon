@@ -29,6 +29,13 @@ export class InterviewsService {
   }
 
   async create(dto: CreateInterviewDto, userId: string) {
+    // Only ACTIVE jobs can be interviewed
+    const job = await this.prisma.job.findUnique({ where: { id: dto.jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    if (job.status !== $Enums.JobStatus.ACTIVE) {
+      throw new BadRequestException('Interviews can only be created for active jobs');
+    }
+
     // Resolve or create candidate
     let candidateId = dto.candidateId;
     if (!candidateId && dto.candidate) {
