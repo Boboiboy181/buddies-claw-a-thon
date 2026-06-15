@@ -5,6 +5,7 @@ import { QuestionSetsService } from './question-sets.service';
 import { GenerateQuestionsDto } from './dto/generate-questions.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
+import { UpdateQuestionSetDto } from './dto/update-question-set.dto';
 
 @ApiTags('question-sets')
 @ApiBearerAuth()
@@ -51,5 +52,10 @@ export class QuestionSetsController {
   @Post('question-sets/:id/activate')
   activate(@Param('id') id: string) {
     return this.qs.activate(id);
+  }
+
+  @Patch('question-sets/:id')
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateQuestionSetDto) {
+    return this.qs.updateStatus(id, dto.status);
   }
 }

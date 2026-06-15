@@ -26,6 +26,9 @@ import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+
+const QS_STATUSES = ['DRAFT', 'ACTIVE', 'ARCHIVED'] as const;
 
 const CATEGORY_LABELS: Record<string, string> = {
   screening: 'Screening', motivation: 'Motivation', experience: 'Experience',
@@ -184,13 +187,13 @@ export default function JobQuestions() {
     onError: () => { toast.error('Failed to reorder'); invalidate(); },
   });
 
-  const activate = useMutation({
-    mutationFn: () => api.post(`/question-sets/${setId}/activate`),
+  const updateStatus = useMutation({
+    mutationFn: (status: string) => api.patch(`/question-sets/${setId}`, { status }),
     onSuccess: () => {
-      toast.success('Question set activated');
+      toast.success('Question set status updated');
       qc.invalidateQueries({ queryKey: ['question-sets', jobId] });
     },
-    onError: () => toast.error('Failed to activate'),
+    onError: () => toast.error('Failed to update status'),
   });
 
   const sensors = useSensors(
@@ -220,13 +223,16 @@ export default function JobQuestions() {
           activeSet && (
             <div className="flex items-center gap-3">
               <Badge variant="secondary">{questions?.length ?? 0} questions</Badge>
-              {isActive ? (
-                <Badge variant="info">Active</Badge>
-              ) : (
-                <Button size="sm" onClick={() => activate.mutate()} disabled={activate.isPending}>
-                  {activate.isPending ? 'Activating...' : 'Activate this set'}
-                </Button>
-              )}
+              <Select value={activeSet.status} onValueChange={(v) => updateStatus.mutate(v)} disabled={updateStatus.isPending}>
+                <SelectTrigger className="h-8 w-auto gap-2 rounded-full border-none bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:opacity-60" aria-label="Question set status">
+                  <Badge variant={isActive ? 'info' : 'secondary'}>{activeSet.status}</Badge>
+                </SelectTrigger>
+                <SelectContent>
+                  {QS_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )
         }

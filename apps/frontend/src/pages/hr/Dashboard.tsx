@@ -247,19 +247,29 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             {s.recentInterviews?.length ? (
-              s.recentInterviews.map((i: any) => (
-                <Link
-                  key={i.id}
-                  to={`/hr/interviews/${i.id}`}
-                  className="flex items-center justify-between rounded-lg border border-transparent bg-muted/35 p-4 transition hover:border-border hover:bg-background"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{i.candidate?.fullName}</p>
-                    <p className="text-muted-foreground text-xs">{i.job?.title}</p>
-                  </div>
-                  <Badge variant={statusVariant(i.status)}>{statusLabel(i.status)}</Badge>
-                </Link>
-              ))
+              s.recentInterviews.map((i: any) => {
+                const matchPct = calcMatchPct(i.report?.rubricScoresJson);
+                return (
+                  <Link
+                    key={i.id}
+                    to={`/hr/interviews/${i.id}`}
+                    className="flex items-center justify-between rounded-lg border border-transparent bg-muted/35 p-4 transition hover:border-border hover:bg-background"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{i.candidate?.fullName}</p>
+                      <p className="text-muted-foreground text-xs">{i.job?.title}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {matchPct !== null && (
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          {matchPct}% match
+                        </span>
+                      )}
+                      <Badge variant={statusVariant(i.status)}>{statusLabel(i.status)}</Badge>
+                    </div>
+                  </Link>
+                );
+              })
             ) : (
               <div className="rounded-lg border border-dashed px-4 py-10 text-center">
                 <p className="text-muted-foreground text-sm">No interviews yet</p>
@@ -319,6 +329,12 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+function calcMatchPct(rubricScoresJson: unknown): number | null {
+  if (!Array.isArray(rubricScoresJson) || rubricScoresJson.length === 0) return null;
+  const avg = rubricScoresJson.reduce((sum: number, r: any) => sum + (r.score ?? 0), 0) / rubricScoresJson.length;
+  return Math.round((avg / 10) * 100);
 }
 
 function statusVariant(status: string) {

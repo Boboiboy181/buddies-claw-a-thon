@@ -20,10 +20,24 @@ const IN_PROGRESS_STATES = [
   'NEXT_QUESTION',
 ];
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, immersive = false }: { children: React.ReactNode; immersive?: boolean }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4 sm:p-6">
-      <div className="flex w-full max-w-6xl flex-col items-center gap-6">{children}</div>
+    <div
+      className={
+        immersive
+          ? 'flex min-h-screen items-stretch justify-center bg-slate-950 p-3 sm:p-4'
+          : 'flex min-h-screen items-center justify-center bg-background p-4 sm:p-6'
+      }
+    >
+      <div
+        className={
+          immersive
+            ? 'flex w-full max-w-[1600px] flex-col items-stretch gap-4'
+            : 'flex w-full max-w-7xl flex-col items-center gap-6'
+        }
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -129,16 +143,18 @@ export default function CandidateInterview() {
   }
 
   return (
-    <Shell>
-      <div className="text-center">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-sm text-muted-foreground shadow-sm">
-          <ShieldCheck className="text-primary" />
-          Phòng phỏng vấn bảo mật
+    <Shell immersive={step === 'room'}>
+      {step !== 'room' && (
+        <div className="text-center">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-sm text-muted-foreground shadow-sm">
+            <ShieldCheck className="text-primary" />
+            Secure interview room
+          </div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+            AI Interview{interview?.job?.title ? ` — ${interview.job.title}` : ''}
+          </h1>
         </div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          AI Interview{interview?.job?.title ? ` — ${interview.job.title}` : ''}
-        </h1>
-      </div>
+      )}
 
       {step === 'consent' && interview && (
         <ConsentScreen interview={interview} onAccept={acceptConsent} submitting={consentSubmitting} />

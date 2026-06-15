@@ -1,16 +1,32 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowRight, CalendarClock, Mail, Phone } from 'lucide-react';
-import { buttonVariants } from '@/components/ui/button';
+import { ArrowRight, CalendarClock, Mail, Phone, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function CandidatesList() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['candidates'], queryFn: () => api.get('/candidates').then(r => r.data) });
+
+  const deleteCandidate = useMutation({
+    mutationFn: (id: string) => api.delete(`/candidates/${id}`).then(r => r.data),
+    onSuccess: () => {
+      toast.success('Candidate deleted');
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to delete candidate'),
+  });
+
+  const handleDelete = (c: any) => {
+    const ok = window.confirm(`Permanently delete "${c.fullName}"? This cannot be undone.`);
+    if (ok) deleteCandidate.mutate(c.id);
+  };
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 xl:p-8">
@@ -33,33 +49,44 @@ export default function CandidatesList() {
             ) : data?.length ? (
               <div className="divide-y divide-border/80">
                 {data.map((c: any) => (
-                  <Link key={c.id} to={`/hr/candidates/${c.id}`} className="group block p-4 transition hover:bg-muted/40">
-                    <div className="flex items-start gap-3">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
-                        {c.fullName?.[0]?.toUpperCase() ?? 'C'}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="truncate font-medium">{c.fullName}</p>
-                          <ArrowRight className="text-muted-foreground transition group-hover:text-primary" />
+                  <div key={c.id} className="flex items-center gap-2 p-4">
+                    <Link to={`/hr/candidates/${c.id}`} className="group min-w-0 flex-1">
+                      <div className="flex items-start gap-3">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
+                          {c.fullName?.[0]?.toUpperCase() ?? 'C'}
                         </div>
-                        <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-2">
-                            <Mail />
-                            <span className="truncate">{c.email}</span>
-                          </span>
-                          <span className="inline-flex items-center gap-2">
-                            <Phone />
-                            {c.phone || 'No phone'}
-                          </span>
-                          <span className="inline-flex items-center gap-2">
-                            <CalendarClock />
-                            Added {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
-                          </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="truncate font-medium">{c.fullName}</p>
+                            <ArrowRight className="text-muted-foreground transition group-hover:text-primary" />
+                          </div>
+                          <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-2">
+                              <Mail />
+                              <span className="truncate">{c.email}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-2">
+                              <Phone />
+                              {c.phone || 'No phone'}
+                            </span>
+                            <span className="inline-flex items-center gap-2">
+                              <CalendarClock />
+                              Added {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      disabled={deleteCandidate.isPending}
+                      onClick={() => handleDelete(c)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -71,11 +98,11 @@ export default function CandidatesList() {
             <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                {['Name', 'Email', 'Phone', 'Created', ''].map((h) => <TableHead key={h}>{h}</TableHead>)}
+                {['Name', 'Email', 'Phone', 'Created', '', ''].map((h, i) => <TableHead key={i}>{h}</TableHead>)}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+              {isLoading ? <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
               : data?.map((c: any) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">
@@ -90,9 +117,20 @@ export default function CandidatesList() {
                   <TableCell className="text-muted-foreground">{c.phone || '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}</TableCell>
                   <TableCell><Link to={`/hr/candidates/${c.id}`} className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'rounded-lg' })}>View</Link></TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      disabled={deleteCandidate.isPending}
+                      onClick={() => handleDelete(c)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
-              {!isLoading && !data?.length && <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No candidates yet</TableCell></TableRow>}
+              {!isLoading && !data?.length && <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No candidates yet</TableCell></TableRow>}
             </TableBody>
             </Table>
           </div>

@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Patch,
@@ -16,13 +17,17 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CandidatesService } from './candidates.service';
 import { CreateCandidateDto } from './dto/create-candidate.dto';
 import { extractCvText, isSupportedCvType } from '../common/cv-parser.util';
+import { StorageService } from '../storage/storage.service';
 
 @ApiTags('candidates')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('candidates')
 export class CandidatesController {
-  constructor(private candidatesService: CandidatesService) {}
+  constructor(
+    private candidatesService: CandidatesService,
+    private storage: StorageService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateCandidateDto) {
@@ -50,7 +55,10 @@ export class CandidatesController {
         'No text could be extracted — the file may be empty or a scanned image. Please paste the CV text manually.',
       );
     }
-    return { cvText, filename: file.originalname };
+    const key = this.storage.generateKey('candidate-cvs', file.originalname);
+    await this.storage.uploadBuffer(file.buffer, key, file.mimetype);
+    const previewUrl = await this.storage.getSignedDownloadUrl(key, 24 * 60 * 60);
+    return { cvText, filename: file.originalname, cvFileUrl: key, cvPreviewUrl: previewUrl };
   }
 
   @Get()
@@ -66,5 +74,10 @@ export class CandidatesController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: Partial<CreateCandidateDto>) {
     return this.candidatesService.update(id, dto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.candidatesService.remove(id);
   }
 }

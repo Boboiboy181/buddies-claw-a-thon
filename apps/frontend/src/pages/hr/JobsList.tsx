@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BriefcaseBusiness, MapPin, Plus, Search } from 'lucide-react';
+import { Archive, ArrowRight, BriefcaseBusiness, MapPin, Plus, Search, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,6 +18,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 const STATUS_OPTIONS = ['ALL', 'DRAFT', 'ACTIVE', 'ARCHIVED'] as const;
 
 export default function JobsList() {
+  const qc = useQueryClient();
   const [keyword, setKeyword] = useState('');
   const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [status, setStatus] = useState<string>('ALL');
@@ -38,6 +40,35 @@ export default function JobsList() {
         })
         .then(r => r.data),
   });
+
+  const archiveJob = useMutation({
+    mutationFn: (id: string) => api.delete(`/jobs/${id}`).then(r => r.data),
+    onSuccess: () => {
+      toast.success('Job archived');
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: () => toast.error('Failed to archive job'),
+  });
+
+  const deleteJob = useMutation({
+    mutationFn: (id: string) => api.delete(`/jobs/${id}/force`).then(r => r.data),
+    onSuccess: () => {
+      toast.success('Job deleted');
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to delete job'),
+  });
+
+  const handleArchiveJob = (job: any) => {
+    if (job.status?.toUpperCase() === 'ARCHIVED') return;
+    const ok = window.confirm(`Archive "${job.title}"? It will no longer be available for new interviews.`);
+    if (ok) archiveJob.mutate(job.id);
+  };
+
+  const handleDeleteJob = (job: any) => {
+    const ok = window.confirm(`Permanently delete "${job.title}"? This cannot be undone.`);
+    if (ok) deleteJob.mutate(job.id);
+  };
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 xl:p-8">
@@ -94,10 +125,10 @@ export default function JobsList() {
       ) : (
         <div className="grid gap-3">
           {data?.map((job: any) => (
-            <Link key={job.id} to={`/hr/jobs/${job.id}`} className="group">
-              <PageBlock className="transition-all hover:border-primary/30 hover:shadow-md hover:shadow-slate-950/5">
-                <CardContent className="p-4 md:p-5">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <PageBlock key={job.id} className="transition-all hover:border-primary/30 hover:shadow-md hover:shadow-slate-950/5">
+              <CardContent className="p-4 md:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <Link to={`/hr/jobs/${job.id}`} className="group min-w-0 flex-1">
                     <div className="flex min-w-0 items-start gap-4">
                       <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <BriefcaseBusiness />
@@ -121,16 +152,42 @@ export default function JobsList() {
                         </div>
                       </div>
                     </div>
+                  </Link>
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center justify-between gap-3 md:justify-end">
-                      <span className="text-xs font-medium text-muted-foreground">Open brief</span>
-                      <div className="flex size-9 items-center justify-center rounded-md border bg-background text-muted-foreground transition group-hover:border-primary/30 group-hover:text-primary">
-                        <ArrowRight />
-                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg"
+                        disabled={archiveJob.isPending || job.status?.toUpperCase() === 'ARCHIVED'}
+                        onClick={() => handleArchiveJob(job)}
+                      >
+                        <Archive data-icon="inline-start" />
+                        Archive
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="rounded-lg"
+                        disabled={deleteJob.isPending}
+                        onClick={() => handleDeleteJob(job)}
+                      >
+                        <Trash2 data-icon="inline-start" />
+                        Delete
+                      </Button>
+                      <Link to={`/hr/jobs/${job.id}`} className="group inline-flex items-center gap-3">
+                        <span className="text-xs font-medium text-muted-foreground">Open brief</span>
+                        <div className="flex size-9 items-center justify-center rounded-md border bg-background text-muted-foreground transition group-hover:border-primary/30 group-hover:text-primary">
+                          <ArrowRight />
+                        </div>
+                      </Link>
                     </div>
                   </div>
-                </CardContent>
-              </PageBlock>
-            </Link>
+                </div>
+              </CardContent>
+            </PageBlock>
           ))}
           {!data?.length &&
             (debouncedKeyword || status !== 'ALL' ? (

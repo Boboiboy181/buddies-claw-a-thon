@@ -3,7 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateInterviewDto } from './dto/create-interview.dto';
+import { CreateInterviewDto, CreateInterviewBulkDto } from './dto/create-interview.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { $Enums } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
@@ -29,11 +29,27 @@ export class InterviewsService {
   }
 
   async create(dto: CreateInterviewDto, userId: string) {
+    // Only ACTIVE jobs can be interviewed
+    const job = await this.prisma.job.findUnique({ where: { id: dto.jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    if (job.status !== $Enums.JobStatus.ACTIVE) {
+      throw new BadRequestException('Interviews can only be created for active jobs');
+    }
+
     // Resolve or create candidate
     let candidateId = dto.candidateId;
     if (!candidateId && dto.candidate) {
       const existing = await this.prisma.candidate.findUnique({ where: { email: dto.candidate.email } });
       if (existing) {
+        if (dto.candidate.cvFileUrl || dto.candidate.cvText) {
+          await this.prisma.candidate.update({
+            where: { id: existing.id },
+            data: {
+              ...(dto.candidate.cvFileUrl ? { cvFileUrl: dto.candidate.cvFileUrl } : {}),
+              ...(dto.candidate.cvText ? { cvParsedText: dto.candidate.cvText } : {}),
+            },
+          });
+        }
         candidateId = existing.id;
       } else {
         const created = await this.prisma.candidate.create({
@@ -117,6 +133,23 @@ export class InterviewsService {
       candidateLink: `/interview/${interview.accessToken}`,
       inviteEmailSent: emailed,
     };
+  }
+
+  async createBulk(dto: CreateInterviewBulkDto, userId: string) {
+    const results = await Promise.allSettled(
+      dto.candidates.map(candidate =>
+        this.create({ candidate, jobId: dto.jobId, questionSetId: dto.questionSetId }, userId),
+      ),
+    );
+
+    return results.map((r, i) => ({
+      candidateName: dto.candidates[i].fullName,
+      candidateEmail: dto.candidates[i].email,
+      success: r.status === 'fulfilled',
+      link: r.status === 'fulfilled' ? this.candidateUrl(r.value.accessToken) : null,
+      inviteEmailSent: r.status === 'fulfilled' ? r.value.inviteEmailSent : false,
+      error: r.status === 'rejected' ? (r.reason?.message ?? 'Failed') : null,
+    }));
   }
 
   async findAll(query: { candidateId?: string; jobId?: string; status?: string }) {

@@ -35,6 +35,7 @@ export class DashboardService {
         include: {
           candidate: { select: { id: true, fullName: true, email: true } },
           job: { select: { id: true, title: true } },
+          report: { select: { rubricScoresJson: true } },
         },
       }),
       this.prisma.candidate.findMany({

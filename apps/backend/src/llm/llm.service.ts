@@ -27,6 +27,7 @@ export class LlmService {
       });
       this.defaultModel = agentbaseModel;
       this.logger.log(`Using AgentBase LLM endpoint with model "${this.defaultModel}"`);
+      console.log(`Using AgentBase LLM endpoint with model "${this.defaultModel}"`);
       return;
     }
 

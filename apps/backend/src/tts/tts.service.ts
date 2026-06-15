@@ -2,12 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import axios from 'axios';
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 
 const DEFAULT_AGENTBASE_BASE_URL = 'https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1';
 const DEFAULT_GEMINI_VOICE = 'Zephyr';
-const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
+const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io';
 const DEFAULT_ELEVENLABS_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel — override via ELEVENLABS_VOICE_ID
-const DEFAULT_ELEVENLABS_MODEL = 'eleven_multilingual_v2'; // supports Vietnamese
+const DEFAULT_ELEVENLABS_TTS_MODEL = 'eleven_v3';
+const DEFAULT_ELEVENLABS_OUTPUT_FORMAT = 'mp3_44100_128';
 
 export type TtsVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
 
@@ -25,6 +27,7 @@ export class TtsService {
   private readonly apiKey?: string;
   private readonly geminiVoice: string;
   private readonly elevenVoiceId?: string;
+  private elevenlabs?: ElevenLabsClient;
   private openai?: OpenAI;
 
   /** Output format differs by provider: AgentBase returns raw PCM (wrapped to WAV), OpenAI returns MP3. */
@@ -42,6 +45,7 @@ export class TtsService {
     const forced = this.readOptional('TTS_PROVIDER')?.toLowerCase();
     if (forced === 'openai') {
       if (!openAiApiKey) throw new Error('TTS_PROVIDER=openai but OPENAI_API_KEY is not set');
+      console.warn('Forcing direct OpenAI TTS usage — consider switching to ElevenLabs for higher-quality voices');
       this.provider = 'openai';
       this.openai = new OpenAI({ apiKey: openAiApiKey });
       this.model = this.config.get('OPENAI_TTS_MODEL', 'tts-1');
@@ -61,9 +65,14 @@ export class TtsService {
     if (elevenLabsApiKey && forced !== 'agentbase') {
       this.provider = 'elevenlabs';
       this.apiKey = elevenLabsApiKey;
-      this.baseUrl = this.config.get('ELEVENLABS_BASE_URL', ELEVENLABS_BASE_URL).replace(/\/+$/, '');
-      this.model = this.config.get('ELEVENLABS_MODEL', DEFAULT_ELEVENLABS_MODEL);
+      this.baseUrl = this.elevenLabsSdkBaseUrl();
+      this.model = this.readOptional('ELEVENLABS_TTS_MODEL') ?? this.config.get('ELEVENLABS_MODEL', DEFAULT_ELEVENLABS_TTS_MODEL);
       this.elevenVoiceId = this.config.get('ELEVENLABS_VOICE_ID', DEFAULT_ELEVENLABS_VOICE);
+      this.elevenlabs = new ElevenLabsClient({
+        apiKey: this.apiKey,
+        baseUrl: this.baseUrl,
+        maxRetries: 3,
+      });
       this.geminiVoice = DEFAULT_GEMINI_VOICE;
       this.audioFormat = { extension: 'mp3', contentType: 'audio/mpeg' };
       this.logger.log(`Using ElevenLabs TTS with model "${this.model}", voice "${this.elevenVoiceId}"`);
@@ -71,6 +80,7 @@ export class TtsService {
     }
 
     if (agentbaseApiKey && agentbaseModel) {
+      console.warn('Using AgentBase TTS — consider switching to ElevenLabs for higher-quality voices');
       this.provider = 'agentbase';
       this.apiKey = agentbaseApiKey;
       this.baseUrl = this.config.get('LLM_BASE_URL', DEFAULT_AGENTBASE_BASE_URL).replace(/\/+$/, '');
@@ -114,37 +124,13 @@ export class TtsService {
   /** ElevenLabs TTS: returns MP3 audio. Retries on 429/5xx (and transient
    *  network errors) since a failed synth would block the current question. */
   private async synthesizeElevenLabs(text: string): Promise<Buffer> {
-    const url = `${this.baseUrl}/text-to-speech/${this.elevenVoiceId}`;
-    const MAX_RETRIES = 3;
-    for (let attempt = 0; ; attempt++) {
-      try {
-        const { data } = await axios.post(
-          url,
-          {
-            text,
-            model_id: this.model,
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-          },
-          {
-            headers: {
-              'xi-api-key': this.apiKey,
-              'Content-Type': 'application/json',
-              Accept: 'audio/mpeg',
-            },
-            params: { output_format: 'mp3_44100_128' },
-            responseType: 'arraybuffer',
-          },
-        );
-        return Buffer.from(data);
-      } catch (err: any) {
-        const status = err?.response?.status;
-        const retryable = status === 429 || status === undefined || status >= 500;
-        if (!retryable || attempt >= MAX_RETRIES) throw err;
-        const waitMs = 1000 * 2 ** attempt;
-        this.logger.warn(`ElevenLabs TTS error (${status ?? 'network'}), retry ${attempt + 1}/${MAX_RETRIES} in ${waitMs}ms`);
-        await new Promise((r) => setTimeout(r, waitMs));
-      }
-    }
+    const audio = await this.elevenlabs!.textToSpeech.convert(this.elevenVoiceId!, {
+      text,
+      modelId: this.model,
+      outputFormat: this.config.get('ELEVENLABS_OUTPUT_FORMAT', DEFAULT_ELEVENLABS_OUTPUT_FORMAT) as any,
+      voiceSettings: { stability: 0.5, similarityBoost: 0.75 },
+    });
+    return this.streamToBuffer(audio);
   }
 
   /** Gemini-native TTS route: returns base64 PCM (s16le mono), wrapped into a WAV container.
@@ -216,5 +202,23 @@ export class TtsService {
   private readOptional(key: string): string | undefined {
     const value = this.config.get<string>(key)?.trim();
     return value ? value : undefined;
+  }
+
+  private elevenLabsSdkBaseUrl(): string {
+    return this.config
+      .get('ELEVENLABS_BASE_URL', ELEVENLABS_BASE_URL)
+      .replace(/\/+$/, '')
+      .replace(/\/v1$/i, '');
+  }
+
+  private async streamToBuffer(stream: ReadableStream<Uint8Array>): Promise<Buffer> {
+    const reader = stream.getReader();
+    const chunks: Uint8Array[] = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+    return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
   }
 }

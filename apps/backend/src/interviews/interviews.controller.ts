@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InterviewsService } from './interviews.service';
-import { CreateInterviewDto } from './dto/create-interview.dto';
+import { CreateInterviewDto, CreateInterviewBulkDto } from './dto/create-interview.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 
 @ApiTags('interviews')
@@ -17,6 +17,13 @@ export class InterviewsController {
   @Post('interviews')
   create(@Body() dto: CreateInterviewDto, @Request() req: any) {
     return this.interviewsService.create(dto, req.user.id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('interviews/bulk')
+  createBulk(@Body() dto: CreateInterviewBulkDto, @Request() req: any) {
+    return this.interviewsService.createBulk(dto, req.user.id);
   }
 
   @ApiBearerAuth()

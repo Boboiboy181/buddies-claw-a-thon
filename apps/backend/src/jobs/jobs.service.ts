@@ -1,12 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { LlmService } from '../llm/llm.service';
+import { extractCvText, isSupportedCvType } from '../common/cv-parser.util';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { $Enums } from '@prisma/client';
 
 @Injectable()
 export class JobsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(JobsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private llm: LlmService,
+    private config: ConfigService,
+  ) {}
 
   async create(dto: CreateJobDto, userId: string) {
     return this.prisma.job.create({
@@ -60,5 +69,74 @@ export class JobsService {
       where: { id },
       data: { status: $Enums.JobStatus.ARCHIVED },
     });
+  }
+
+  async remove(id: string) {
+    const job = await this.findOne(id);
+    if (job._count.interviews > 0) {
+      throw new BadRequestException('Job has associated interviews and cannot be deleted.');
+    }
+    await this.prisma.job.delete({ where: { id } });
+  }
+
+  async parseJd(input: { url?: string; file?: Express.Multer.File }) {
+    let rawText: string;
+
+    if (input.url) {
+      rawText = await this.scrapeUrlWithTavily(input.url);
+    } else if (input.file) {
+      if (!isSupportedCvType(input.file.mimetype, input.file.originalname)) {
+        throw new BadRequestException('Unsupported file type. Please upload a PDF, DOCX, or TXT file.');
+      }
+      rawText = await extractCvText(input.file.buffer, input.file.mimetype, input.file.originalname);
+    } else {
+      throw new BadRequestException('Either url or file is required.');
+    }
+
+    if (!rawText?.trim()) {
+      throw new BadRequestException('No content could be extracted from the provided source.');
+    }
+
+    return this.llm.generateJson<{
+      title: string;
+      department: string;
+      level: string;
+      location: string;
+      employmentType: string;
+      jdRawText: string;
+    }>({
+      systemPrompt: `You are a job description parser. Extract structured fields AND clean content from the raw text.
+
+Return JSON with these exact keys:
+- "title": job title (string, e.g. "Senior Frontend Engineer")
+- "department": department name (string, e.g. "Engineering") — empty string if not found
+- "level": one of "Junior" | "Middle" | "Senior" | "Lead" | "Manager" — pick the closest match, empty string if unclear
+- "location": city/country or "Remote" (string) — empty string if not found
+- "employmentType": one of "Full-time" | "Part-time" | "Contract" | "Freelance" — empty string if not found
+- "jdRawText": the full job description as clean HTML using only <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>. Structure into sections: role overview, responsibilities, requirements, nice-to-have, benefits. Remove navigation, ads, cookie notices, unrelated page content.`,
+      userPrompt: rawText.slice(0, 12000),
+      temperature: 0.1,
+    });
+  }
+
+  private async scrapeUrlWithTavily(url: string): Promise<string> {
+    const apiKey = this.config.get<string>('TAVILY_API_KEY')?.trim();
+    if (!apiKey) throw new BadRequestException('TAVILY_API_KEY is not configured on the server.');
+
+    const res = await fetch('https://api.tavily.com/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey, urls: [url] }),
+    });
+
+    if (!res.ok) {
+      this.logger.warn(`Tavily extract failed: ${res.status} ${res.statusText}`);
+      throw new BadRequestException('Failed to fetch the URL. Check that it is publicly accessible.');
+    }
+
+    const data = await res.json() as { results?: Array<{ raw_content?: string }> };
+    const content = data.results?.[0]?.raw_content ?? '';
+    if (!content) throw new BadRequestException('No content found at the provided URL.');
+    return content;
   }
 }
