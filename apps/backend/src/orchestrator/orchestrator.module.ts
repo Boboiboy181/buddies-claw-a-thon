@@ -6,8 +6,10 @@ import { StorageModule } from '../storage/storage.module';
 import { DailyModule } from '../daily/daily.module';
 import { LivekitModule } from '../livekit/livekit.module';
 import { GatewayModule } from '../gateway/gateway.module';
+import { LlmModule } from '../llm/llm.module';
 import { QUEUE_REPORT_GENERATION } from '../queue/queue.constants';
 import { InterviewOrchestratorService } from './orchestrator.service';
+import { ConversationService } from './conversation.service';
 import { OrchestratorController } from './orchestrator.controller';
 
 @Module({
@@ -19,9 +21,10 @@ import { OrchestratorController } from './orchestrator.controller';
     DailyModule,
     LivekitModule,
     GatewayModule,
+    LlmModule,
   ],
   controllers: [OrchestratorController],
-  providers: [InterviewOrchestratorService],
+  providers: [InterviewOrchestratorService, ConversationService],
   exports: [InterviewOrchestratorService],
 })
 export class OrchestratorModule {}

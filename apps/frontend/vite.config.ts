@@ -15,6 +15,9 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // Fallback only: in dev the socket.io client connects straight to the
+      // backend via VITE_WS_URL (see .env.development), bypassing this proxy so
+      // Vite's ws-proxy doesn't spam ECONNRESET/EPIPE on every reload.
       '/socket.io': {
         target: 'http://localhost:3001',
         ws: true,

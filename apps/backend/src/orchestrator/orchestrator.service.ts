@@ -10,11 +10,16 @@ import { StorageService } from '../storage/storage.service';
 import { DailyService } from '../daily/daily.service';
 import { LivekitService } from '../livekit/livekit.service';
 import { InterviewGateway } from '../gateway/interview.gateway';
+import { ConversationService } from './conversation.service';
 import { QUEUE_REPORT_GENERATION, JOB_GENERATE_REPORT } from '../queue/queue.constants';
 
 const DEFAULT_GREETING_VI =
   'Xin chào! Tôi là trợ lý phỏng vấn AI. Cảm ơn bạn đã tham gia buổi phỏng vấn hôm nay. ' +
   'Tôi sẽ lần lượt đọc từng câu hỏi, bạn hãy trả lời sau khi nghe xong. Chúng ta bắt đầu nhé!';
+
+const DEFAULT_CLOSING_VI =
+  'Cảm ơn bạn đã hoàn thành buổi phỏng vấn hôm nay. Chúng tôi sẽ xem xét các câu trả lời của bạn ' +
+  'và phản hồi trong thời gian sớm nhất. Chúc bạn một ngày tốt lành!';
 
 @Injectable()
 export class InterviewOrchestratorService {
@@ -28,6 +33,7 @@ export class InterviewOrchestratorService {
     private daily: DailyService,
     private livekit: LivekitService,
     private gateway: InterviewGateway,
+    private conversation: ConversationService,
     private config: ConfigService,
     @InjectQueue(QUEUE_REPORT_GENERATION) private reportQueue: Queue,
   ) {}
@@ -218,6 +224,35 @@ export class InterviewOrchestratorService {
     });
   }
 
+  /** Re-plays the current question on candidate request ("repeat"). Reuses the
+   *  cached TTS audio and does not advance or penalize time — the answer timer
+   *  restarts when listening resumes after the replay. */
+  async repeatQuestion(interviewId: string) {
+    const interview = await this.getInterview(interviewId, { questions: { orderBy: { order: 'asc' } } });
+    const question = (interview as any).questions[interview.currentQuestionIndex];
+    if (!question) throw new BadRequestException('No current question to repeat');
+
+    await this.runOrFail(interviewId, async () => {
+      await this.prisma.interview.update({
+        where: { id: interviewId },
+        data: { state: $Enums.InterviewState.ASKING_QUESTION },
+      });
+      this.gateway.emitStateChange(interviewId, $Enums.InterviewState.ASKING_QUESTION, {
+        questionIndex: interview.currentQuestionIndex,
+        questionId: question.id,
+      });
+
+      const key = await this.ensureQuestionTts(interviewId, question);
+      const audioUrl = await this.storage.getSignedDownloadUrl(key);
+      this.gateway.emitAgentSpeak(interviewId, {
+        type: 'question',
+        text: question.text,
+        audioUrl,
+        questionId: question.id,
+      });
+    });
+  }
+
   // ── Giai đoạn 6: Start listening ────────────────────────────────────
 
   async startListening(interviewId: string, questionId: string) {
@@ -256,10 +291,22 @@ export class InterviewOrchestratorService {
       const mimetype = options.mimetype || 'audio/webm';
       const ext = mimetype.includes('webm') ? 'webm' : mimetype.includes('wav') ? 'wav' : 'mp3';
       const key = `interviews/${interviewId}/answers/${questionId}.${ext}`;
-      await this.storage.uploadBuffer(audioBuffer, key, mimetype);
-
       const language = this.config.get('AGENT_LANGUAGE', 'vi');
-      const transcript = await this.stt.transcribe(audioBuffer, `answer.${ext}`, language);
+
+      // Upload + transcribe run on the same in-memory buffer and don't depend on
+      // each other — overlap them so the candidate only waits for the slower of
+      // the two (Whisper) instead of upload + Whisper back-to-back.
+      const [, transcript] = await Promise.all([
+        this.storage.uploadBuffer(audioBuffer, key, mimetype),
+        this.stt.transcribe(audioBuffer, `answer.${ext}`, language),
+      ]);
+
+      // A recording for a questionId that already has an answer is a reply to a
+      // follow-up — append it to the running dialogue rather than overwriting.
+      const existing = await this.prisma.interviewAnswer.findUnique({ where: { questionId } });
+      const mergedTranscript = existing?.transcript
+        ? `${existing.transcript}\n[Ứng viên]: ${transcript}`
+        : transcript;
 
       await this.prisma.interviewAnswer.upsert({
         where: { questionId },
@@ -267,12 +314,12 @@ export class InterviewOrchestratorService {
           interviewId,
           questionId,
           answerAudioUrl: key,
-          transcript,
+          transcript: mergedTranscript,
           durationSeconds: options.durationSeconds,
         },
         update: {
           answerAudioUrl: key,
-          transcript,
+          transcript: mergedTranscript,
           durationSeconds: options.durationSeconds,
         },
       });
@@ -289,16 +336,139 @@ export class InterviewOrchestratorService {
   // ── Giai đoạn 8: Advance ────────────────────────────────────────────
 
   async advanceInterview(interviewId: string) {
-    const interview = await this.getInterview(interviewId, { questions: { orderBy: { order: 'asc' } } });
-    const nextIndex = interview.currentQuestionIndex + 1;
-    const hasMore = nextIndex < (interview as any).questions.length;
+    const interview = await this.getInterview(interviewId, {
+      questions: { orderBy: { order: 'asc' } },
+      answers: true,
+      job: true,
+    });
+    const questions = (interview as any).questions;
+    const currentIndex = interview.currentQuestionIndex;
+    const currentQ = questions[currentIndex];
+    const maxFollowUps = parseInt(this.config.get('INTERVIEW_MAX_FOLLOWUPS', '2'), 10);
 
+    // Conversational turn: let the agent probe the current answer with a
+    // follow-up before moving on. Capped per question; disabled when max is 0.
+    if (maxFollowUps > 0 && currentQ) {
+      const answer = (interview as any).answers.find((a: any) => a.questionId === currentQ.id);
+      if (answer && (answer.followUpCount ?? 0) < maxFollowUps) {
+        const decision = await this.conversation.nextTurn({
+          jobTitle: (interview as any).job.title,
+          jdRawText: (interview as any).job.jdRawText ?? '',
+          questionText: currentQ.text,
+          answerSoFar: answer.transcript ?? '',
+          followUpsAsked: answer.followUpCount ?? 0,
+          maxFollowUps,
+          language: this.config.get('AGENT_LANGUAGE', 'vi'),
+        });
+        if (decision.action === 'follow_up' && decision.say) {
+          await this.emitFollowUp(interviewId, currentQ.id, decision.say, answer.followUpCount ?? 0);
+          return { done: false, followUp: true, nextQuestionIndex: currentIndex };
+        }
+      }
+    }
+
+    const nextIndex = currentIndex + 1;
+    const hasMore = nextIndex < questions.length;
     if (hasMore) {
       await this.askQuestion(interviewId, nextIndex);
       return { done: false, nextQuestionIndex: nextIndex };
     }
+    // Speak a closing thank-you before completing. Best-effort: a TTS failure
+    // must not block finishing (report generation is queued server-side either way).
+    await this.playClosing(interviewId).catch((err) =>
+      this.logger.warn(`Closing TTS failed for ${interviewId}: ${err.message}`),
+    );
     await this.finishInterview(interviewId);
     return { done: true, nextQuestionIndex: null };
+  }
+
+  /** Fire-and-forget wrapper around advanceInterview for the process-answer path.
+   *  advanceInterview already routes hard failures through runOrFail (state FAILED
+   *  + socket error); this just keeps an unawaited rejection from going unlogged. */
+  async advanceAfterAnswer(interviewId: string) {
+    try {
+      await this.advanceInterview(interviewId);
+    } catch (err: any) {
+      this.logger.error(`advanceAfterAnswer failed for ${interviewId}: ${err.message}`);
+    }
+  }
+
+  /** Re-syncs a candidate who reloaded the browser mid-interview. Re-emits the
+   *  current state and replays the appropriate prompt based on where the interview
+   *  actually is, so resume works from any state without the client guessing. */
+  async resumeInterview(interviewId: string) {
+    const interview = await this.getInterview(interviewId);
+    const idx = interview.currentQuestionIndex ?? 0;
+
+    switch (interview.state) {
+      case $Enums.InterviewState.AGENT_GREETING:
+        await this.startGreeting(interviewId);
+        return { resumed: true, state: interview.state };
+
+      // Mid-question states: replay the current question; the candidate answers
+      // again (the in-progress recording was lost on reload anyway).
+      case $Enums.InterviewState.ASKING_QUESTION:
+      case $Enums.InterviewState.LISTENING_ANSWER:
+      case $Enums.InterviewState.PROCESSING_ANSWER:
+      case $Enums.InterviewState.AGENT_RESPONSE:
+      case $Enums.InterviewState.NEXT_QUESTION:
+        await this.askQuestion(interviewId, idx);
+        return { resumed: true, state: interview.state };
+
+      // Already finished — just push the terminal state so the page shows the
+      // completion screen instead of trying to re-enter the room.
+      case $Enums.InterviewState.COMPLETED:
+      case $Enums.InterviewState.REPORT_GENERATING:
+      case $Enums.InterviewState.REPORT_READY:
+      case $Enums.InterviewState.FAILED:
+        this.gateway.emitStateChange(interviewId, interview.state);
+        return { resumed: false, state: interview.state };
+
+      // Not started yet (INIT / CONSENT_PENDING / READY_CHECK): begin the greeting.
+      default:
+        await this.startGreeting(interviewId);
+        return { resumed: true, state: interview.state };
+    }
+  }
+
+  /** Speaks an improvised follow-up for the current question and records it in
+   *  the dialogue. The candidate's reply (next process-answer) appends to the
+   *  same answer, so the report sees the full exchange. */
+  private async emitFollowUp(interviewId: string, questionId: string, say: string, currentCount: number) {
+    await this.runOrFail(interviewId, async () => {
+      const existing = await this.prisma.interviewAnswer.findUnique({ where: { questionId } });
+      const transcript = existing?.transcript
+        ? `${existing.transcript}\n[Phỏng vấn viên hỏi thêm]: ${say}`
+        : `[Phỏng vấn viên hỏi thêm]: ${say}`;
+      await this.prisma.interviewAnswer.update({
+        where: { questionId },
+        data: { transcript, followUpCount: currentCount + 1 },
+      });
+
+      await this.prisma.interview.update({
+        where: { id: interviewId },
+        data: { state: $Enums.InterviewState.ASKING_QUESTION },
+      });
+      this.gateway.emitStateChange(interviewId, $Enums.InterviewState.ASKING_QUESTION, { questionId });
+
+      const { extension, contentType } = this.tts.audioFormat;
+      const key = `interviews/${interviewId}/tts/followup-${questionId}-${currentCount + 1}.${extension}`;
+      const buffer = await this.tts.synthesize(say);
+      await this.storage.uploadBuffer(buffer, key, contentType);
+      const audioUrl = await this.storage.getSignedDownloadUrl(key);
+      this.gateway.emitAgentSpeak(interviewId, { type: 'question', text: say, audioUrl, questionId });
+    });
+  }
+
+  /** Synthesizes and emits the agent's closing thank-you message (type 'closing'). */
+  async playClosing(interviewId: string) {
+    const closingText = this.config.get('AGENT_CLOSING_TEXT', DEFAULT_CLOSING_VI);
+    const { extension, contentType } = this.tts.audioFormat;
+    const key = `interviews/${interviewId}/tts/closing.${extension}`;
+    const buffer = await this.tts.synthesize(closingText);
+    await this.storage.uploadBuffer(buffer, key, contentType);
+    const audioUrl = await this.storage.getSignedDownloadUrl(key);
+    this.gateway.emitAgentSpeak(interviewId, { type: 'closing', text: closingText, audioUrl });
   }
 
   // ── Giai đoạn 9: Finish ─────────────────────────────────────────────

@@ -219,6 +219,7 @@ export default function JobQuestions() {
         actions={
           activeSet && (
             <div className="flex items-center gap-3">
+              <Badge variant="secondary">{questions?.length ?? 0} questions</Badge>
               {isActive ? (
                 <Badge variant="info">Active</Badge>
               ) : (

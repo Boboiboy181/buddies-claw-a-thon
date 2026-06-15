@@ -39,3 +39,7 @@ apps/frontend/package-lock.json
 apps/backend/package-lock.json
 .greennode.json
 .agentbase/
+
+server_temp.md
+vStorage_s3sdk.js
+vserver-stores.yml

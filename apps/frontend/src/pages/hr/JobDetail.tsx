@@ -1,21 +1,39 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { ArrowLeft, Plus, Wand2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Wand2, ExternalLink, Pencil, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageBlock } from '@/components/page-block';
+import { RichTextEditor, isRichTextEmpty } from '@/components/ui/rich-text-editor';
 
 export default function JobDetail() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [generating, setGenerating] = useState(false);
+  const [editingJd, setEditingJd] = useState(false);
+  const [jdDraft, setJdDraft] = useState('');
 
   const { data: job, isLoading } = useQuery({ queryKey: ['job', jobId], queryFn: () => api.get(`/jobs/${jobId}`).then(r => r.data) });
+
+  const saveJd = useMutation({
+    mutationFn: (jdRawText: string) => api.patch(`/jobs/${jobId}`, { jdRawText }).then(r => r.data),
+    onSuccess: () => {
+      toast.success('Job description updated');
+      qc.invalidateQueries({ queryKey: ['job', jobId] });
+      setEditingJd(false);
+    },
+    onError: () => toast.error('Failed to save job description'),
+  });
+
+  const startEditJd = () => {
+    setJdDraft(job?.jdRawText || '');
+    setEditingJd(true);
+  };
   const { data: questionSets } = useQuery({ queryKey: ['question-sets', jobId], queryFn: () => api.get(`/jobs/${jobId}/question-sets`).then(r => r.data) });
   const { data: interviews } = useQuery({ queryKey: ['job-interviews', jobId], queryFn: () => api.get(`/interviews?jobId=${jobId}`).then(r => r.data) });
 
@@ -23,7 +41,7 @@ export default function JobDetail() {
     setGenerating(true);
     try {
       await api.post(`/jobs/${jobId}/question-sets/generate`, {
-        questionCount: 10, categories: ['screening', 'motivation', 'experience', 'behavioral', 'technical'],
+        questionCount: 5, categories: ['technical', 'experience', 'motivation', 'behavioral', 'salary'],
         language: 'vi', difficulty: job?.level?.toLowerCase() || 'middle',
         includeSalaryQuestion: true, includeMotivationQuestion: true,
       });
@@ -62,11 +80,44 @@ export default function JobDetail() {
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="flex flex-col gap-6 xl:col-span-2">
           <PageBlock>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between">
               <CardTitle>Job Description</CardTitle>
+              {!editingJd && (
+                <Button variant="ghost" size="sm" className="rounded-lg" onClick={startEditJd}>
+                  <Pencil data-icon="inline-start" /> Edit
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-foreground/85">{job?.jdRawText}</pre>
+              {editingJd ? (
+                <div className="flex flex-col gap-3">
+                  <RichTextEditor value={jdDraft} onChange={setJdDraft} placeholder="Write the job description..." />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-lg"
+                      onClick={() => setEditingJd(false)}
+                      disabled={saveJd.isPending}
+                    >
+                      <X data-icon="inline-start" /> Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="rounded-lg"
+                      onClick={() => saveJd.mutate(jdDraft)}
+                      disabled={saveJd.isPending || isRichTextEmpty(jdDraft)}
+                    >
+                      <Check data-icon="inline-start" /> {saveJd.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="whitespace-pre-wrap text-sm leading-7 text-foreground/85 [&_h2]:mt-3 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_strong]:font-semibold [&_em]:italic"
+                  dangerouslySetInnerHTML={{ __html: job?.jdRawText || '<p class="text-muted-foreground">No description yet.</p>' }}
+                />
+              )}
             </CardContent>
           </PageBlock>
 

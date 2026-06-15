@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Daily, { type DailyCall } from '@daily-co/daily-js';
 import { Room as LivekitRoom, Track } from 'livekit-client';
-import { Bot, CircleStop, Loader2, Mic } from 'lucide-react';
+import { Bot, CircleStop, Loader2, Mic, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { AudioRecorder } from '@/lib/audioRecorder';
@@ -23,6 +23,28 @@ interface Props {
   onCompleted: () => void;
 }
 
+/** Animated equalizer shown while the agent is speaking — a lightweight stand-in
+ *  for a talking avatar (no real lip-sync). */
+function SpeakingIndicator() {
+  return (
+    <div className="flex h-10 items-center gap-1" aria-hidden>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className="w-1.5 rounded-full bg-primary-foreground"
+          style={{
+            height: '100%',
+            transformOrigin: 'center',
+            animation: 'interview-eq 0.9s ease-in-out infinite',
+            animationDelay: `${i * 0.12}s`,
+          }}
+        />
+      ))}
+      <style>{'@keyframes interview-eq{0%,100%{transform:scaleY(0.25)}50%{transform:scaleY(1)}}'}</style>
+    </div>
+  );
+}
+
 export function InterviewRoom({ interview, onCompleted }: Props) {
   const [phase, setPhase] = useState<RoomPhase>('connecting');
   const [agentText, setAgentText] = useState('Đang kết nối với trợ lý phỏng vấn...');
@@ -38,6 +60,8 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
   const maxDurationRef = useRef<number | undefined>(undefined);
   const submittingRef = useRef(false);
   const startedRef = useRef(false);
+  const closingRef = useRef(false);
+  const closingFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const orchestrate = useCallback(
     (action: string, params?: Record<string, unknown>) =>
@@ -64,7 +88,8 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       socket.emitAnswerSubmitted(questionId);
-      await orchestrate('advance');
+      // The backend advances automatically once the answer is saved; the next
+      // question / follow-up arrives over the socket (agent_speak). No second call.
     } catch {
       toast.error('Gửi câu trả lời thất bại. Vui lòng thử lại.');
       setPhase('listening');
@@ -81,9 +106,37 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interview.id, orchestrate]);
 
+  // Candidate asks the agent to repeat the current question. Discards the
+  // in-progress recording; the answer timer restarts after the replay (no penalty).
+  const repeatQuestion = useCallback(async () => {
+    if (submittingRef.current) return;
+    const recorder = recorderRef.current;
+    try {
+      if (recorder?.isRecording) await recorder.stop();
+    } catch {
+      /* nothing recorded yet */
+    }
+    setPhase('agent_speaking');
+    setAgentText('Đang phát lại câu hỏi...');
+    try {
+      await orchestrate('repeat-question');
+    } catch {
+      toast.error('Không phát lại được câu hỏi. Vui lòng thử lại.');
+      try {
+        recorder?.start();
+        recordStartRef.current = Date.now();
+        setElapsed(0);
+        setPhase('listening');
+      } catch {
+        setPhase('failed');
+      }
+    }
+  }, [orchestrate]);
+
   const handleAgentSpeak = useCallback((e: AgentSpeakEvent) => {
     setPhase('agent_speaking');
     setAgentText(e.text);
+    if (e.type === 'closing') closingRef.current = true;
     if (e.questionId) currentQuestionIdRef.current = e.questionId;
     const audio = audioRef.current;
     if (!audio) return;
@@ -98,6 +151,12 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
   const handleAudioEnded = useCallback(async () => {
     const type = audioRef.current?.dataset.speakType;
     socket.emitAudioEnded(type ?? 'question');
+    // Closing message finished — leave the room (the report is already queued server-side).
+    if (type === 'closing') {
+      if (closingFallbackRef.current) clearTimeout(closingFallbackRef.current);
+      onCompleted();
+      return;
+    }
     try {
       if (type === 'greeting') {
         await orchestrate(`next-question?index=0`);
@@ -109,7 +168,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       setPhase('failed');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orchestrate]);
+  }, [orchestrate, onCompleted]);
 
   const socket = useInterviewSocket(interview.id, {
     onAgentSpeak: handleAgentSpeak,
@@ -134,7 +193,15 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       }
       if (e.state === 'REPORT_GENERATING' || e.state === 'COMPLETED') setPhase('waiting');
     },
-    onInterviewCompleted: onCompleted,
+    onInterviewCompleted: () => {
+      // Wait for the closing message to finish before leaving; if it never plays
+      // (e.g. autoplay blocked), fall back after a short delay so we don't hang.
+      if (closingRef.current) {
+        closingFallbackRef.current = setTimeout(onCompleted, 20000);
+      } else {
+        onCompleted();
+      }
+    },
     onError: ({ message }) => toast.error(message),
   });
 
@@ -205,12 +272,10 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       startedRef.current = true;
       socket.emitCandidateJoined();
       try {
-        if (interview.state === 'READY_CHECK' || interview.state === 'CONSENT_PENDING' || interview.state === 'INIT') {
-          await orchestrate('start-greeting');
-        } else {
-          // Rejoin mid-interview: replay the current question
-          await orchestrate(`next-question?index=${interview.currentQuestionIndex ?? 0}`);
-        }
+        // The server decides what to play based on the interview's actual state:
+        // greeting for a fresh start, or a replay of the current question when the
+        // candidate reloaded mid-interview. Idempotent, so a reload resumes cleanly.
+        await orchestrate('resume');
       } catch {
         setPhase('failed');
         setAgentText('Không bắt đầu được phỏng vấn. Vui lòng tải lại trang.');
@@ -219,6 +284,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (closingFallbackRef.current) clearTimeout(closingFallbackRef.current);
       recorder.destroy();
       videoStream?.getTracks().forEach((t) => t.stop());
       if (dailyCall) {
@@ -259,7 +325,7 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
           <div
             className={`flex size-24 items-center justify-center rounded-full transition-colors ${
               phase === 'agent_speaking'
-                ? 'animate-pulse bg-primary text-primary-foreground'
+                ? 'bg-primary text-primary-foreground'
                 : phase === 'listening'
                   ? 'bg-emerald-600 text-white'
                   : 'bg-muted text-muted-foreground'
@@ -269,6 +335,8 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
               <Loader2 className="size-10 animate-spin" />
             ) : phase === 'listening' ? (
               <Mic className="size-10" />
+            ) : phase === 'agent_speaking' ? (
+              <SpeakingIndicator />
             ) : (
               <Bot className="size-10" />
             )}
@@ -289,14 +357,25 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
                   style={{ width: `${Math.min(100, micLevel * 250)}%` }}
                 />
               </div>
-              <Button
-                size="lg"
-                className="h-11 rounded-lg px-6"
-                onClick={() => void submitAnswer()}
-              >
-                <CircleStop data-icon="inline-start" />
-                Trả lời xong
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-11 rounded-lg px-5"
+                  onClick={() => void repeatQuestion()}
+                >
+                  <RotateCcw data-icon="inline-start" />
+                  Nghe lại câu hỏi
+                </Button>
+                <Button
+                  size="lg"
+                  className="h-11 rounded-lg px-6"
+                  onClick={() => void submitAnswer()}
+                >
+                  <CircleStop data-icon="inline-start" />
+                  Trả lời xong
+                </Button>
+              </div>
             </div>
           )}
 
