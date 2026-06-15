@@ -233,14 +233,24 @@ export default function InterviewDetail() {
                   {report.qaAnalysisJson?.map((qa: any, idx: number) => (
                     <Section key={idx} title={`Q${idx+1}: ${qa.question}`}>
                       <div className="mb-4 rounded-lg bg-muted/40 p-4">
-                        <p className="text-muted-foreground mb-1 text-xs font-semibold tracking-[0.18em]">ANSWER</p>
-                        <p className="text-sm leading-7 text-foreground/85">{qa.answerTranscript}</p>
+                        <div className="mb-1 flex items-center justify-between">
+                          <p className="text-muted-foreground text-xs font-semibold tracking-[0.18em]">ANSWER</p>
+                          {qa.relevance && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-foreground/70">{String(qa.relevance).replace(/_/g, ' ')}</span>}
+                        </div>
+                        <p className="text-sm leading-7 text-foreground/85">{qa.answerTranscript || '— No answer recorded —'}</p>
                       </div>
+                      {qa.answerSummary && <p className="mb-3 text-sm text-foreground/80"><span className="font-semibold">Summary: </span>{qa.answerSummary}</p>}
                       <div className="mb-3 grid gap-3 md:grid-cols-2">
                         {qa.strengths?.length > 0 && <div><p className="mb-1 text-xs font-semibold tracking-[0.18em] text-emerald-700">STRENGTHS</p><ul className="flex list-disc flex-col gap-1 pl-5">{qa.strengths.map((s: string, i: number) => <li key={i} className="text-xs text-foreground/80">{s}</li>)}</ul></div>}
                         {qa.concerns?.length > 0 && <div><p className="mb-1 text-xs font-semibold tracking-[0.18em] text-red-600">CONCERNS</p><ul className="flex list-disc flex-col gap-1 pl-5">{qa.concerns.map((c: string, i: number) => <li key={i} className="text-xs text-foreground/80">{c}</li>)}</ul></div>}
                       </div>
-                      {qa.score && <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Score:</span><span className="text-lg font-semibold">{qa.score}/10</span></div>}
+                      {qa.evidenceQuotes?.length > 0 && (
+                        <div className="mb-3">
+                          <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-foreground/60">EVIDENCE (verbatim)</p>
+                          <ul className="flex flex-col gap-1">{qa.evidenceQuotes.map((q: string, i: number) => <li key={i} className="border-l-2 border-muted pl-3 text-xs italic text-foreground/70">"{q}"</li>)}</ul>
+                        </div>
+                      )}
+                      {qa.score != null && <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Score:</span><span className="text-lg font-semibold">{qa.score}/10</span>{qa.scoreReason && <span className="text-xs text-muted-foreground">— {qa.scoreReason}</span>}</div>}
                     </Section>
                   ))}
                 </>
@@ -291,14 +301,24 @@ export default function InterviewDetail() {
               {report?.audioReviewSignalsJson && (
                 <PageBlock>
                   <CardHeader>
-                    <CardTitle>Non-verbal & Audio Review Signals</CardTitle>
+                    <CardTitle>Audio Review Signals</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground mb-3 text-xs italic">These are observational signals for HR reference only. They do not determine hiring decisions.</p>
-                    <dl className="flex flex-col gap-2 text-sm">
-                      <div><dt className="text-muted-foreground">Speaking Pace</dt><dd className="font-medium capitalize">{report.audioReviewSignalsJson.speakingPace}</dd></div>
-                      <div><dt className="text-muted-foreground">Total Duration</dt><dd className="font-medium">{report.audioReviewSignalsJson.speakingDurationSeconds}s</dd></div>
-                    </dl>
+                    <p className="text-muted-foreground mb-3 text-xs italic">
+                      {report.audioReviewSignalsJson.available
+                        ? 'Measured from transcription timestamps — observational only, not a hiring criterion.'
+                        : 'No measured audio data was captured for this interview.'}
+                    </p>
+                    {report.audioReviewSignalsJson.available && (
+                      <dl className="flex flex-col gap-2 text-sm">
+                        <div><dt className="text-muted-foreground">Speaking Pace</dt><dd className="font-medium capitalize">{report.audioReviewSignalsJson.speakingPace}</dd></div>
+                        {report.audioReviewSignalsJson.speakingDurationSeconds != null && <div><dt className="text-muted-foreground">Speaking Time</dt><dd className="font-medium">{report.audioReviewSignalsJson.speakingDurationSeconds}s</dd></div>}
+                        {report.audioReviewSignalsJson.totalDurationSeconds != null && <div><dt className="text-muted-foreground">Total Duration</dt><dd className="font-medium">{report.audioReviewSignalsJson.totalDurationSeconds}s</dd></div>}
+                        {report.audioReviewSignalsJson.wordsPerMinute != null && <div><dt className="text-muted-foreground">Words / min</dt><dd className="font-medium">{report.audioReviewSignalsJson.wordsPerMinute}</dd></div>}
+                        <div><dt className="text-muted-foreground">Long Pauses</dt><dd className="font-medium">{report.audioReviewSignalsJson.longPauseCount ?? 0}</dd></div>
+                        {report.audioReviewSignalsJson.avgConfidence != null && <div><dt className="text-muted-foreground">Transcription Confidence</dt><dd className="font-medium">{Math.round(report.audioReviewSignalsJson.avgConfidence * 100)}%</dd></div>}
+                      </dl>
+                    )}
                   </CardContent>
                 </PageBlock>
               )}

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Controller, useForm } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { ArrowLeft, Copy } from 'lucide-react';
+import { ArrowLeft, Copy, FileText, Loader2, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,8 +19,54 @@ export default function InterviewNew() {
   const [params] = useSearchParams();
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
-  const { register, handleSubmit, watch, control } = useForm<Record<string, any>>({ defaultValues: { jobId: params.get('jobId') || '' } });
+  const { register, handleSubmit, watch, control, setValue } = useForm<Record<string, any>>({ defaultValues: { jobId: params.get('jobId') || '' } });
   const jobId = watch('jobId');
+  const [parsingCv, setParsingCv] = useState(false);
+  const [cvFileName, setCvFileName] = useState<string | null>(null);
+  const [cvPreviewUrl, setCvPreviewUrl] = useState<string | null>(null);
+  const [cvIsPdf, setCvIsPdf] = useState(false);
+  const [showExtractedText, setShowExtractedText] = useState(false);
+
+  // Revoke the object URL when it changes or on unmount to avoid memory leaks.
+  useEffect(() => {
+    return () => { if (cvPreviewUrl) URL.revokeObjectURL(cvPreviewUrl); };
+  }, [cvPreviewUrl]);
+
+  const handleCvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setParsingCv(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await api.post('/candidates/parse-cv', form);
+      setValue('candidate.cvText', data.cvText, { shouldDirty: true });
+      setCvFileName(data.filename || file.name);
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      setCvIsPdf(isPdf);
+      setShowExtractedText(false);
+      setCvPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return isPdf ? URL.createObjectURL(file) : null;
+      });
+      toast.success('CV imported successfully.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not read this CV file.');
+    } finally {
+      setParsingCv(false);
+    }
+  };
+
+  const clearCv = () => {
+    setValue('candidate.cvText', '', { shouldDirty: true });
+    setCvFileName(null);
+    setCvIsPdf(false);
+    setShowExtractedText(false);
+    setCvPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+  };
+
+  const cvText = watch('candidate.cvText');
 
   const { data: jobs } = useQuery({ queryKey: ['jobs'], queryFn: () => api.get('/jobs').then(r => r.data) });
   const { data: qSets } = useQuery({ queryKey: ['question-sets', jobId], queryFn: () => api.get(`/jobs/${jobId}/question-sets`).then(r => r.data), enabled: !!jobId });
@@ -105,8 +151,78 @@ export default function InterviewNew() {
               <Input id="candidate-phone" {...register('candidate.phone')} className="h-11" />
             </div>
             <div className="flex flex-col gap-2 md:col-span-2">
-              <Label htmlFor="candidate-cv">CV Text (optional)</Label>
-              <Textarea id="candidate-cv" rows={5} {...register('candidate.cvText')} placeholder="Paste CV content..." />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="candidate-cv">CV (optional)</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="candidate-cv-file"
+                    type="file"
+                    accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                    className="hidden"
+                    onChange={handleCvUpload}
+                    disabled={parsingCv}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={parsingCv}
+                    onClick={() => document.getElementById('candidate-cv-file')?.click()}
+                  >
+                    {parsingCv ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <Upload data-icon="inline-start" />}
+                    {parsingCv ? 'Reading CV...' : cvFileName ? 'Replace file' : 'Upload CV file'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Hidden registration keeps the parsed text in the form (sent to the
+                  backend) even while a PDF is shown as a preview instead of raw text. */}
+              {(!cvFileName || cvIsPdf) && (
+                <Textarea id="candidate-cv" {...register('candidate.cvText')} className="hidden" />
+              )}
+
+              {parsingCv ? (
+                <div className="flex h-40 items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Reading CV...
+                </div>
+              ) : cvFileName ? (
+                <div className="flex flex-col rounded-lg border bg-muted/20">
+                  <div className="flex items-center gap-2 border-b px-3 py-2">
+                    <FileText className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 truncate text-sm font-medium">{cvFileName}</span>
+                    {!cvIsPdf && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowExtractedText((s) => !s)}>
+                        {showExtractedText ? 'Hide text' : 'View text'}
+                      </Button>
+                    )}
+                    <Button type="button" variant="ghost" size="icon-sm" className="rounded-md text-muted-foreground" onClick={clearCv} title="Remove CV">
+                      <X />
+                    </Button>
+                  </div>
+                  {cvIsPdf && cvPreviewUrl ? (
+                    <iframe src={cvPreviewUrl} title="CV preview" className="h-96 w-full rounded-b-lg" />
+                  ) : showExtractedText ? (
+                    <div className="p-2">
+                      <Textarea id="candidate-cv" {...register('candidate.cvText')} className="min-h-40 border-0 bg-transparent shadow-none focus-visible:ring-0" />
+                    </div>
+                  ) : (
+                    <p className="px-3 py-3 text-sm text-muted-foreground">
+                      Extracted {cvText?.length ?? 0} characters. Click “View text” to review or edit.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={parsingCv}
+                  onClick={() => document.getElementById('candidate-cv-file')?.click()}
+                  className="flex h-32 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed bg-muted/20 text-sm text-muted-foreground transition-colors hover:bg-muted/40"
+                >
+                  <Upload className="size-5" />
+                  <span>Upload the candidate's CV</span>
+                  <span className="text-xs">PDF, DOCX or TXT — we'll read it automatically</span>
+                </button>
+              )}
             </div>
           </CardContent>
         </PageBlock>

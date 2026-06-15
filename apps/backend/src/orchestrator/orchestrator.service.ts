@@ -2,8 +2,13 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
-import { $Enums } from '@prisma/client';
+import { $Enums, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  computeAudioMetrics,
+  mergeAudioMetrics,
+  type AudioMetrics,
+} from '../common/audio-metrics.util';
 import { TtsService } from '../tts/tts.service';
 import { SttService } from '../stt/stt.service';
 import { StorageService } from '../storage/storage.service';
@@ -296,10 +301,20 @@ export class InterviewOrchestratorService {
       // Upload + transcribe run on the same in-memory buffer and don't depend on
       // each other — overlap them so the candidate only waits for the slower of
       // the two (Whisper) instead of upload + Whisper back-to-back.
-      const [, transcript] = await Promise.all([
+      const [, transcription] = await Promise.all([
         this.storage.uploadBuffer(audioBuffer, key, mimetype),
-        this.stt.transcribe(audioBuffer, `answer.${ext}`, language),
+        this.stt.transcribeDetailed(audioBuffer, `answer.${ext}`, language),
       ]);
+      const transcript = transcription.text;
+
+      // Real, measured audio metrics from transcription timestamps (or an honest
+      // fallback when the provider returns no timing data).
+      const metrics = computeAudioMetrics({
+        segments: transcription.segments,
+        totalDurationSeconds: transcription.durationSeconds,
+        clientDurationSeconds: options.durationSeconds,
+        transcriptText: transcript,
+      });
 
       // A recording for a questionId that already has an answer is a reply to a
       // follow-up — append it to the running dialogue rather than overwriting.
@@ -307,6 +322,10 @@ export class InterviewOrchestratorService {
       const mergedTranscript = existing?.transcript
         ? `${existing.transcript}\n[Ứng viên]: ${transcript}`
         : transcript;
+      const mergedMetrics = mergeAudioMetrics(
+        (existing?.audioMetricsJson as unknown as AudioMetrics | null) ?? null,
+        metrics,
+      );
 
       await this.prisma.interviewAnswer.upsert({
         where: { questionId },
@@ -316,11 +335,13 @@ export class InterviewOrchestratorService {
           answerAudioUrl: key,
           transcript: mergedTranscript,
           durationSeconds: options.durationSeconds,
+          audioMetricsJson: mergedMetrics as unknown as Prisma.InputJsonValue,
         },
         update: {
           answerAudioUrl: key,
           transcript: mergedTranscript,
           durationSeconds: options.durationSeconds,
+          audioMetricsJson: mergedMetrics as unknown as Prisma.InputJsonValue,
         },
       });
 

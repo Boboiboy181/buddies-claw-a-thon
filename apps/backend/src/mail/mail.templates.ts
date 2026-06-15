@@ -9,7 +9,7 @@ const wrap = (title: string, body: string) => `
 </div>`;
 
 const fmtDate = (d: Date) =>
-  d.toLocaleString('vi-VN', { dateStyle: 'long', timeStyle: 'short' });
+  d.toLocaleDateString('en-GB', { dateStyle: 'long' });
 
 /** Invitation sent to the candidate with the interview link and deadline. */
 export function interviewInvite(params: {
@@ -19,21 +19,24 @@ export function interviewInvite(params: {
   expiresAt?: Date | null;
 }): Omit<MailMessage, 'to'> {
   const deadline = params.expiresAt
-    ? `<p>Vui lòng hoàn thành trước <strong>${fmtDate(params.expiresAt)}</strong>.</p>`
+    ? ` before <strong>${fmtDate(params.expiresAt)}</strong>`
     : '';
   const body = `
-    <p>Xin chào ${params.candidateName},</p>
-    <p>Bạn được mời tham gia buổi phỏng vấn cho vị trí <strong>${params.jobTitle}</strong>.</p>
-    <p>Buổi phỏng vấn do trợ lý AI thực hiện: AI đọc câu hỏi, bạn trả lời bằng giọng nói. Bạn có thể thực hiện bất cứ lúc nào qua đường dẫn dưới đây.</p>
-    ${deadline}
+    <p>Dear ${params.candidateName},</p>
+    <p>We&rsquo;re really pleased to let you know you&rsquo;ve been shortlisted for our <strong>${params.jobTitle}</strong> role. Our talent team have already reviewed your application in detail and we&rsquo;d love to keep things moving. Your next step is a short interview with our AI Recruitment Agent.</p>
+    <p>We know it&rsquo;s not a conventional first conversation. We use it because we get a high volume of applications and it means every shortlisted candidate gets a proper shot, on their own schedule.</p>
+    <p>Please record your responses whenever suits you${deadline}. No diary wrangling, no fixed time slots. Our TA team reviews everything personally on our end.</p>
+    <p>When you&rsquo;re ready:</p>
     <p style="margin:24px 0">
-      <a href="${params.link}" style="background:#534ab7;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">Bắt đầu phỏng vấn</a>
+      <a href="${params.link}" style="background:#534ab7;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">Start your interview</a>
     </p>
-    <p style="font-size:13px;color:#666">Hoặc mở liên kết: <a href="${params.link}">${params.link}</a></p>`;
+    <p style="font-size:13px;color:#666">Or open the link: <a href="${params.link}">${params.link}</a></p>
+    <p>And of course, if you have any questions or if you need any adjustments to complete this, please just hit reply and we&rsquo;ll be happy to help.</p>
+    <p>Best of luck,<br/>VNG&rsquo;s Talent Acquisition team.</p>`;
   return {
-    subject: `Lời mời phỏng vấn — ${params.jobTitle}`,
-    html: wrap('Lời mời phỏng vấn', body),
-    text: `Xin chào ${params.candidateName}, bạn được mời phỏng vấn vị trí ${params.jobTitle}. Mở liên kết: ${params.link}${params.expiresAt ? ` (hạn: ${fmtDate(params.expiresAt)})` : ''}`,
+    subject: `You've been shortlisted — ${params.jobTitle}`,
+    html: wrap('You&rsquo;ve been shortlisted', body),
+    text: `Dear ${params.candidateName}, we're really pleased to let you know you've been shortlisted for our ${params.jobTitle} role. Your next step is a short interview with our AI Recruitment Agent. Please record your responses whenever suits you${params.expiresAt ? ` before ${fmtDate(params.expiresAt)}` : ''}. When you're ready, start your interview: ${params.link}. If you have any questions or need any adjustments, just hit reply. Best of luck, VNG's Talent Acquisition team.`,
   };
 }
 
