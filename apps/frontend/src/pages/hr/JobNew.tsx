@@ -32,15 +32,24 @@ export default function JobNew() {
   const [jdParsing, setJdParsing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const fillParsedFields = (data: any) => {
+    if (data.title)          setValue('title', data.title, { shouldDirty: true });
+    if (data.department)     setValue('department', data.department, { shouldDirty: true });
+    if (data.level)          setValue('level', data.level, { shouldDirty: true });
+    if (data.location)       setValue('location', data.location, { shouldDirty: true });
+    if (data.employmentType) setValue('employmentType', data.employmentType, { shouldDirty: true });
+    if (data.jdRawText)      setValue('jdRawText', data.jdRawText, { shouldDirty: true });
+  };
+
   const parseFromUrl = async () => {
     if (!urlInput.trim()) return;
     setJdParsing(true);
     try {
       const { data } = await api.post('/jobs/parse-jd', { url: urlInput.trim() });
-      setValue('jdRawText', data.jdRawText, { shouldDirty: true });
+      fillParsedFields(data);
       setShowUrlInput(false);
       setUrlInput('');
-      toast.success('JD imported from URL.');
+      toast.success('JD imported — fields auto-filled.');
     } catch (e: any) {
       toast.error(e?.response?.data?.message ?? 'Failed to import from URL.');
     } finally {
@@ -57,8 +66,8 @@ export default function JobNew() {
       const form = new FormData();
       form.append('file', file);
       const { data } = await api.post('/jobs/parse-jd', form);
-      setValue('jdRawText', data.jdRawText, { shouldDirty: true });
-      toast.success('JD extracted from file.');
+      fillParsedFields(data);
+      toast.success('JD extracted — fields auto-filled.');
     } catch (e: any) {
       toast.error(e?.response?.data?.message ?? 'Failed to read file.');
     } finally {

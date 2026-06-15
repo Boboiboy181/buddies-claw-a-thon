@@ -79,7 +79,7 @@ export class JobsService {
     await this.prisma.job.delete({ where: { id } });
   }
 
-  async parseJd(input: { url?: string; file?: Express.Multer.File }): Promise<{ jdRawText: string }> {
+  async parseJd(input: { url?: string; file?: Express.Multer.File }) {
     let rawText: string;
 
     if (input.url) {
@@ -97,19 +97,26 @@ export class JobsService {
       throw new BadRequestException('No content could be extracted from the provided source.');
     }
 
-    const { jdRawText } = await this.llm.generateJson<{ jdRawText: string }>({
-      systemPrompt: `You are a job description formatter. Extract and clean the job description from the raw text provided by the user.
+    return this.llm.generateJson<{
+      title: string;
+      department: string;
+      level: string;
+      location: string;
+      employmentType: string;
+      jdRawText: string;
+    }>({
+      systemPrompt: `You are a job description parser. Extract structured fields AND clean content from the raw text.
 
-Return JSON with a single key "jdRawText" containing well-formatted HTML.
-Use only these tags: <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>.
-Structure the content into clear sections: role overview, responsibilities, requirements, nice-to-have skills, benefits.
-Remove all navigation bars, cookie notices, ads, social media links, and unrelated page content.
-Keep all actual job-related content intact. Output valid HTML only — no markdown, no code fences.`,
+Return JSON with these exact keys:
+- "title": job title (string, e.g. "Senior Frontend Engineer")
+- "department": department name (string, e.g. "Engineering") — empty string if not found
+- "level": one of "Junior" | "Middle" | "Senior" | "Lead" | "Manager" — pick the closest match, empty string if unclear
+- "location": city/country or "Remote" (string) — empty string if not found
+- "employmentType": one of "Full-time" | "Part-time" | "Contract" | "Freelance" — empty string if not found
+- "jdRawText": the full job description as clean HTML using only <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>. Structure into sections: role overview, responsibilities, requirements, nice-to-have, benefits. Remove navigation, ads, cookie notices, unrelated page content.`,
       userPrompt: rawText.slice(0, 12000),
       temperature: 0.1,
     });
-
-    return { jdRawText };
   }
 
   private async scrapeUrlWithTavily(url: string): Promise<string> {
