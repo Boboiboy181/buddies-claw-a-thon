@@ -3,7 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateInterviewDto } from './dto/create-interview.dto';
+import { CreateInterviewDto, CreateInterviewBulkDto } from './dto/create-interview.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { $Enums } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
@@ -133,6 +133,23 @@ export class InterviewsService {
       candidateLink: `/interview/${interview.accessToken}`,
       inviteEmailSent: emailed,
     };
+  }
+
+  async createBulk(dto: CreateInterviewBulkDto, userId: string) {
+    const results = await Promise.allSettled(
+      dto.candidates.map(candidate =>
+        this.create({ candidate, jobId: dto.jobId, questionSetId: dto.questionSetId }, userId),
+      ),
+    );
+
+    return results.map((r, i) => ({
+      candidateName: dto.candidates[i].fullName,
+      candidateEmail: dto.candidates[i].email,
+      success: r.status === 'fulfilled',
+      link: r.status === 'fulfilled' ? this.candidateUrl(r.value.accessToken) : null,
+      inviteEmailSent: r.status === 'fulfilled' ? r.value.inviteEmailSent : false,
+      error: r.status === 'rejected' ? (r.reason?.message ?? 'Failed') : null,
+    }));
   }
 
   async findAll(query: { candidateId?: string; jobId?: string; status?: string }) {

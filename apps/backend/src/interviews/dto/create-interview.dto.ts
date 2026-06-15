@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, ValidateNested, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsEmail, ValidateNested, IsArray, ArrayMinSize } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -13,6 +13,18 @@ export class CandidateInputDto {
 export class CreateInterviewDto {
   @ApiPropertyOptional() @IsString() @IsOptional() candidateId?: string;
   @ApiPropertyOptional() @ValidateNested() @Type(() => CandidateInputDto) @IsOptional() candidate?: CandidateInputDto;
+  @ApiProperty() @IsString() jobId: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() questionSetId?: string;
+}
+
+export class CreateInterviewBulkDto {
+  @ApiProperty({ type: [CandidateInputDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CandidateInputDto)
+  candidates: CandidateInputDto[];
+
   @ApiProperty() @IsString() jobId: string;
   @ApiPropertyOptional() @IsString() @IsOptional() questionSetId?: string;
 }
