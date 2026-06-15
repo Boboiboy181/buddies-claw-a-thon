@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Daily, { type DailyCall } from '@daily-co/daily-js';
 import { Room as LivekitRoom, Track } from 'livekit-client';
-import { Bot, CircleStop, Loader2, Mic, RotateCcw } from 'lucide-react';
+import {
+  Bot,
+  CheckCircle2,
+  CircleStop,
+  Clock3,
+  Loader2,
+  MessageSquareText,
+  Mic,
+  RotateCcw,
+  Video,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { AudioRecorder } from '@/lib/audioRecorder';
 import { useInterviewSocket } from '@/lib/socket';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { AgentSpeakEvent, CandidateInterviewPayload } from '@/types/api';
 
 type RoomPhase =
@@ -110,20 +122,27 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
     }
   }, [orchestrate]);
 
-  const handleAgentSpeak = useCallback((e: AgentSpeakEvent) => {
-    setPhase('agent_speaking');
-    setAgentText(e.text);
-    if (e.type === 'closing') closingRef.current = true;
-    if (e.questionId) currentQuestionIdRef.current = e.questionId;
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.src = e.audioUrl;
-    audio.dataset.speakType = e.type;
-    audio.play().catch(() => {
-      // Autoplay blocked — let the candidate tap to play
-      toast('Nhấn vào nút loa để nghe câu hỏi', { icon: '🔊' });
-    });
-  }, []);
+  const handleAgentSpeak = useCallback(
+    (e: AgentSpeakEvent) => {
+      setPhase('agent_speaking');
+      setAgentText(e.text);
+      if (e.type === 'closing') closingRef.current = true;
+      if (e.questionId) {
+        currentQuestionIdRef.current = e.questionId;
+        const nextQuestionIndex = interview.questions.findIndex((q) => q.id === e.questionId);
+        if (nextQuestionIndex >= 0) setQuestionIndex(nextQuestionIndex);
+      }
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.src = e.audioUrl;
+      audio.dataset.speakType = e.type;
+      audio.play().catch(() => {
+        // Autoplay blocked — let the candidate tap to play
+        toast('Nhấn vào nút loa để nghe câu hỏi', { icon: '🔊' });
+      });
+    },
+    [interview.questions],
+  );
 
   const handleAudioEnded = useCallback(async () => {
     const type = audioRef.current?.dataset.speakType;
@@ -287,6 +306,12 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
   const totalQuestions = interview.questions.length;
   const progressLabel =
     questionIndex !== null ? `Câu ${questionIndex + 1}/${totalQuestions}` : 'Lời chào';
+  const visibleQuestions =
+    questionIndex !== null ? interview.questions.slice(0, questionIndex + 1) : [];
+  const completedQuestionCount =
+    questionIndex !== null && phase !== 'agent_speaking' && phase !== 'listening'
+      ? Math.min(questionIndex + 1, totalQuestions)
+      : Math.max(0, visibleQuestions.length - 1);
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const phaseLabel =
@@ -303,101 +328,187 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
               : 'Đang kết nối';
 
   return (
-    <div className="flex w-full max-w-6xl flex-col gap-4">
-      <div className="overflow-hidden rounded-lg border bg-slate-950 shadow-xl shadow-slate-950/10">
-        <div className="relative bg-slate-950">
-          <video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full bg-slate-950 object-cover" />
+    <div className="grid min-h-[calc(100vh-2rem)] w-full gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+      <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-950 shadow-xl shadow-black/30">
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white sm:px-5">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{interview.job.title}</p>
+            <p className="truncate text-xs text-white/55">{interview.candidate.fullName}</p>
+          </div>
+          <Badge variant="secondary" className="shrink-0 bg-white/10 text-white">
+            {progressLabel}
+          </Badge>
+        </div>
+
+        <div className="relative flex min-h-0 flex-1 items-center bg-black">
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="aspect-video max-h-full w-full bg-black object-cover"
+          />
 
           <div className="absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-3 sm:p-4">
-            <div className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-xs font-medium text-white shadow-sm backdrop-blur">
-              {progressLabel}
-            </div>
-            <div className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-xs font-medium text-white shadow-sm backdrop-blur">
+            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-xs font-medium text-white shadow-sm backdrop-blur">
+              <Video className="size-3.5" />
               Camera đang ghi
             </div>
-          </div>
-        </div>
-
-        <div className="border-t border-white/10 bg-slate-950 px-4 py-4 sm:px-6 sm:py-5">
-          <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center">
-            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-              <span
-                className={`flex size-7 items-center justify-center rounded-full ${
-                  phase === 'agent_speaking'
-                    ? 'bg-primary text-primary-foreground'
-                    : phase === 'listening'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white/15 text-white'
-                }`}
-              >
-                {phase === 'processing' || phase === 'connecting' ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : phase === 'listening' ? (
-                  <Mic className="size-4" />
-                ) : phase === 'agent_speaking' ? (
-                  <Bot className="size-4" />
-                ) : (
-                  <Bot className="size-4" />
-                )}
-              </span>
+            <div className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-xs font-medium text-white shadow-sm backdrop-blur">
               {phaseLabel}
             </div>
-
-            <p className="text-balance text-lg font-medium leading-8 text-white sm:text-xl sm:leading-9 md:text-2xl md:leading-10">
-              {agentText}
-            </p>
           </div>
-        </div>
-      </div>
 
-      {phase === 'listening' && (
-        <div className="rounded-lg border bg-card p-4 shadow-sm">
-          <div className="mx-auto flex max-w-4xl flex-col items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-emerald-700">
-              <span className="size-2 animate-pulse rounded-full bg-red-500" />
-              Đang ghi âm - {formatTime(elapsed)}
-              {maxDurationRef.current ? ` / tối đa ${formatTime(maxDurationRef.current)}` : ''}
-            </div>
-            <div className="h-2 w-full max-w-xl overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-[width] duration-75"
-                style={{ width: `${Math.min(100, micLevel * 250)}%` }}
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-11 rounded-lg px-5"
-                onClick={() => void repeatQuestion()}
-              >
-                <RotateCcw data-icon="inline-start" />
-                Nghe lại câu hỏi
-              </Button>
-              <Button
-                size="lg"
-                className="h-11 rounded-lg px-6"
-                onClick={() => void submitAnswer()}
-              >
-                <CircleStop data-icon="inline-start" />
-                Trả lời xong
-              </Button>
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-4 pb-4 pt-16 sm:px-6 sm:pb-6">
+            <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center">
+              <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/85 backdrop-blur">
+                <span
+                  className={cn(
+                    'flex size-7 items-center justify-center rounded-full',
+                    phase === 'agent_speaking' && 'bg-primary text-primary-foreground',
+                    phase === 'listening' && 'bg-emerald-600 text-white',
+                    phase !== 'agent_speaking' && phase !== 'listening' && 'bg-white/15 text-white',
+                  )}
+                >
+                  {phase === 'processing' || phase === 'connecting' ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : phase === 'listening' ? (
+                    <Mic className="size-4" />
+                  ) : (
+                    <Bot className="size-4" />
+                  )}
+                </span>
+                {phaseLabel}
+              </div>
+
+              <p className="text-balance text-base font-medium leading-7 text-white sm:text-xl sm:leading-9 md:text-2xl md:leading-10">
+                {agentText}
+              </p>
             </div>
           </div>
         </div>
-      )}
 
-      {phase === 'agent_speaking' && (
-        <p className="text-center text-xs text-muted-foreground">
-          Trợ lý đang nói, bạn sẽ trả lời sau khi audio kết thúc...
-        </p>
-      )}
-
-      {phase === 'connecting' && (
-        <div className="flex justify-center">
-          <Loader2 className="animate-spin text-muted-foreground" />
+        <div className="border-t border-white/10 bg-slate-950 px-4 py-3 sm:px-6">
+          {phase === 'listening' ? (
+            <div className="mx-auto flex max-w-4xl flex-col items-center gap-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-emerald-300">
+                <span className="size-2 animate-pulse rounded-full bg-red-500" />
+                Đang ghi âm - {formatTime(elapsed)}
+                {maxDurationRef.current ? ` / tối đa ${formatTime(maxDurationRef.current)}` : ''}
+              </div>
+              <div className="h-2 w-full max-w-xl overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-75"
+                  style={{ width: `${Math.min(100, micLevel * 250)}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-11 rounded-lg border-white/15 bg-white/10 px-5 text-white hover:bg-white/15 hover:text-white"
+                  onClick={() => void repeatQuestion()}
+                >
+                  <RotateCcw data-icon="inline-start" />
+                  Nghe lại câu hỏi
+                </Button>
+                <Button
+                  size="lg"
+                  className="h-11 rounded-lg px-6"
+                  onClick={() => void submitAnswer()}
+                >
+                  <CircleStop data-icon="inline-start" />
+                  Trả lời xong
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-14 items-center justify-center text-center text-xs text-white/55">
+              {phase === 'agent_speaking' && 'Trợ lý đang nói, bạn sẽ trả lời sau khi audio kết thúc...'}
+              {phase === 'connecting' && <Loader2 className="animate-spin" />}
+              {phase !== 'agent_speaking' && phase !== 'connecting' && phaseLabel}
+            </div>
+          )}
         </div>
-      )}
+      </main>
+
+      <aside className="flex min-h-[420px] flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] text-white shadow-xl shadow-black/20 lg:min-h-0">
+        <div className="border-b border-white/10 px-4 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold">Câu hỏi phỏng vấn</h2>
+              <p className="mt-1 text-xs text-white/55">
+                {visibleQuestions.length}/{totalQuestions} câu đã xuất hiện
+              </p>
+            </div>
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+              <MessageSquareText className="size-5" />
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          {visibleQuestions.length ? (
+            <ol className="flex flex-col gap-3">
+              {visibleQuestions.map((question, index) => {
+                const isCurrent = index === questionIndex;
+                const isCompleted = index < completedQuestionCount;
+                return (
+                  <li
+                    key={question.id}
+                    className={cn(
+                      'rounded-lg border p-3 transition',
+                      isCurrent
+                        ? 'border-primary/60 bg-primary/20'
+                        : 'border-white/10 bg-white/[0.04]',
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                          isCurrent ? 'bg-primary text-primary-foreground' : 'bg-white/10 text-white',
+                        )}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <Badge variant={isCurrent ? 'default' : 'secondary'}>
+                            {isCurrent ? 'Đang hỏi' : isCompleted ? 'Đã trả lời' : 'Đã hỏi'}
+                          </Badge>
+                          {question.maxDurationSeconds && (
+                            <span className="inline-flex items-center gap-1 text-xs text-white/50">
+                              <Clock3 className="size-3" />
+                              {formatTime(question.maxDurationSeconds)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm leading-6 text-white/90">{question.text}</p>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-center text-white/55">
+              <MessageSquareText className="size-10 text-white/35" />
+              <p className="text-sm">Câu hỏi sẽ xuất hiện tại đây khi trợ lý bắt đầu.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-white/10 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 text-xs text-white/55">
+            <span>{totalQuestions - visibleQuestions.length} câu đang chờ</span>
+            <span className="inline-flex items-center gap-1">
+              <CheckCircle2 className="size-3.5" />
+              Tự động cập nhật
+            </span>
+          </div>
+        </div>
+      </aside>
 
       <audio ref={audioRef} onEnded={() => void handleAudioEnded()} className="hidden" />
     </div>

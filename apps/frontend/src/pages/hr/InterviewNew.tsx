@@ -42,6 +42,7 @@ export default function InterviewNew() {
       form.append('file', file);
       const { data } = await api.post('/candidates/parse-cv', form);
       setValue('candidate.cvText', data.cvText, { shouldDirty: true });
+      setValue('candidate.cvFileUrl', data.cvFileUrl || '', { shouldDirty: true });
       setCvFileName(data.filename || file.name);
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       setCvIsPdf(isPdf);
@@ -60,6 +61,7 @@ export default function InterviewNew() {
 
   const clearCv = () => {
     setValue('candidate.cvText', '', { shouldDirty: true });
+    setValue('candidate.cvFileUrl', '', { shouldDirty: true });
     setCvFileName(null);
     setCvIsPdf(false);
     setShowExtractedText(false);
@@ -177,6 +179,7 @@ export default function InterviewNew() {
 
               {/* Hidden registration keeps the parsed text in the form (sent to the
                   backend) even while a PDF is shown as a preview instead of raw text. */}
+              <input type="hidden" {...register('candidate.cvFileUrl')} />
               {(!cvFileName || cvIsPdf) && (
                 <Textarea id="candidate-cv" {...register('candidate.cvText')} className="hidden" />
               )}

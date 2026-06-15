@@ -1,17 +1,23 @@
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ExternalLink, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageBlock } from '@/components/page-block';
 
 export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [showExtractedText, setShowExtractedText] = useState(false);
   const { data: candidate } = useQuery({ queryKey: ['candidate', id], queryFn: () => api.get(`/candidates/${id}`).then(r => r.data) });
   const { data: interviews } = useQuery({ queryKey: ['candidate-interviews', id], queryFn: () => api.get(`/interviews?candidateId=${id}`).then(r => r.data) });
+  const cvUrl = candidate?.cvFileUrl;
+  const cvText = candidate?.cvParsedText;
+  const hasCv = Boolean(cvUrl || cvText);
+  const cvIsPdf = Boolean(cvUrl && /\.pdf(?:$|[?#])/i.test(cvUrl));
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 xl:p-8">
@@ -29,13 +35,49 @@ export default function CandidateDetail() {
       </div>
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          {candidate?.cvParsedText && (
+          {hasCv && (
             <PageBlock>
               <CardHeader>
-                <CardTitle>CV Content</CardTitle>
+                <CardTitle>CV Preview</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-foreground/85">{candidate.cvParsedText}</pre>
+                <div className="flex flex-col overflow-hidden rounded-lg border bg-muted/20">
+                  <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+                    <FileText className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {cvUrl ? 'Candidate CV' : 'Extracted CV text'}
+                    </span>
+                    {cvText && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowExtractedText((s) => !s)}>
+                        {showExtractedText ? 'Hide text' : 'View text'}
+                      </Button>
+                    )}
+                    {cvUrl && (
+                      <a href={cvUrl} target="_blank" rel="noreferrer" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+                        <ExternalLink data-icon="inline-start" />
+                        Open
+                      </a>
+                    )}
+                  </div>
+
+                  {cvUrl && cvIsPdf ? (
+                    <iframe src={cvUrl} title="CV preview" className="h-[720px] w-full bg-background" />
+                  ) : (
+                    <p className="px-3 py-3 text-sm text-muted-foreground">
+                      {cvUrl
+                        ? 'Preview is available for PDF files. Open the original file or click "View text" to review the extracted content.'
+                        : `Extracted ${cvText?.length ?? 0} characters. Click "View text" to review.`}
+                    </p>
+                  )}
+
+                  {showExtractedText && cvText && (
+                    <div className="border-t bg-background p-4">
+                      <pre className="max-h-96 overflow-auto whitespace-pre-wrap font-sans text-sm leading-7 text-foreground/85">
+                        {cvText}
+                      </pre>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </PageBlock>
           )}

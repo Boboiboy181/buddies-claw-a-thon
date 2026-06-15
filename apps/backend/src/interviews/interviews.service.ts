@@ -41,6 +41,15 @@ export class InterviewsService {
     if (!candidateId && dto.candidate) {
       const existing = await this.prisma.candidate.findUnique({ where: { email: dto.candidate.email } });
       if (existing) {
+        if (dto.candidate.cvFileUrl || dto.candidate.cvText) {
+          await this.prisma.candidate.update({
+            where: { id: existing.id },
+            data: {
+              ...(dto.candidate.cvFileUrl ? { cvFileUrl: dto.candidate.cvFileUrl } : {}),
+              ...(dto.candidate.cvText ? { cvParsedText: dto.candidate.cvText } : {}),
+            },
+          });
+        }
         candidateId = existing.id;
       } else {
         const created = await this.prisma.candidate.create({
