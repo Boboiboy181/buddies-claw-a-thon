@@ -23,7 +23,10 @@ export class MailService {
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
-    this.from = this.config.get<string>('MAIL_FROM', 'HR Interview <noreply@haidg.io.vn>');
+    this.from = this.config
+      .get<string>('MAIL_FROM', 'HR Interview <noreply@haidg.io.vn>')
+      .replace(/^["']|["']$/g, '')
+      .trim();
 
     if (!apiKey) {
       this.logger.warn('RESEND_API_KEY not set — e-mails will be logged, not delivered');
@@ -50,9 +53,6 @@ export class MailService {
       console.log('Sending email with Resend:', {
         from: this.from,
         to: message.to,
-        subject: message.subject,
-        html: message.html,
-        text: message.text,
       });
       const { error } = await this.resend.emails.send({
         from: this.from,
