@@ -76,10 +76,15 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Build runtime update payload
+        env:
+          # Pass the secret through the environment, never inline it into the script:
+          # values like MAIL_FROM="HR Interview <onboarding@resend.dev>" contain quotes
+          # and < > that bash would parse as redirection if substituted into the script text.
+          AGENTBASE_ENV: ${{ secrets.AGENTBASE_ENV }}
         run: |
           set -euo pipefail
           # Materialize the env file from the secret and convert KEY=VALUE lines to a JSON object.
-          printf '%s\n' "${{ secrets.AGENTBASE_ENV }}" > .env.agentbase
+          printf '%s\n' "$AGENTBASE_ENV" > .env.agentbase
           ENV_JSON=$(jq -Rn '
             [ inputs
               | select(test("^[A-Za-z_][A-Za-z0-9_]*="))      # skip comments / blank lines
