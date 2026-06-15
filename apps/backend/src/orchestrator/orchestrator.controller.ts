@@ -100,12 +100,23 @@ export class OrchestratorController {
       mimetype: file.mimetype,
       durationSeconds: body.durationSeconds ? parseInt(body.durationSeconds, 10) : undefined,
     });
+    // Advance (follow-up decision / next question / closing) runs server-side and
+    // pushes the next prompt over the socket — the candidate doesn't make a second
+    // round-trip and gets the transcript back as soon as Whisper finishes.
+    void this.orchestrator.advanceAfterAnswer(id);
     return { transcript };
   }
 
   @Post('advance')
   advance(@Param('id') id: string) {
     return this.orchestrator.advanceInterview(id);
+  }
+
+  /** Re-syncs a candidate who reloaded the page mid-interview: re-emits the
+   *  current state and replays the current prompt. Idempotent. */
+  @Post('resume')
+  resume(@Param('id') id: string) {
+    return this.orchestrator.resumeInterview(id);
   }
 
   @Post('finish')

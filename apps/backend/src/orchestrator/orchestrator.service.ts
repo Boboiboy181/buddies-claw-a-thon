@@ -291,10 +291,15 @@ export class InterviewOrchestratorService {
       const mimetype = options.mimetype || 'audio/webm';
       const ext = mimetype.includes('webm') ? 'webm' : mimetype.includes('wav') ? 'wav' : 'mp3';
       const key = `interviews/${interviewId}/answers/${questionId}.${ext}`;
-      await this.storage.uploadBuffer(audioBuffer, key, mimetype);
-
       const language = this.config.get('AGENT_LANGUAGE', 'vi');
-      const transcript = await this.stt.transcribe(audioBuffer, `answer.${ext}`, language);
+
+      // Upload + transcribe run on the same in-memory buffer and don't depend on
+      // each other — overlap them so the candidate only waits for the slower of
+      // the two (Whisper) instead of upload + Whisper back-to-back.
+      const [, transcript] = await Promise.all([
+        this.storage.uploadBuffer(audioBuffer, key, mimetype),
+        this.stt.transcribe(audioBuffer, `answer.${ext}`, language),
+      ]);
 
       // A recording for a questionId that already has an answer is a reply to a
       // follow-up — append it to the running dialogue rather than overwriting.
@@ -375,6 +380,55 @@ export class InterviewOrchestratorService {
     );
     await this.finishInterview(interviewId);
     return { done: true, nextQuestionIndex: null };
+  }
+
+  /** Fire-and-forget wrapper around advanceInterview for the process-answer path.
+   *  advanceInterview already routes hard failures through runOrFail (state FAILED
+   *  + socket error); this just keeps an unawaited rejection from going unlogged. */
+  async advanceAfterAnswer(interviewId: string) {
+    try {
+      await this.advanceInterview(interviewId);
+    } catch (err: any) {
+      this.logger.error(`advanceAfterAnswer failed for ${interviewId}: ${err.message}`);
+    }
+  }
+
+  /** Re-syncs a candidate who reloaded the browser mid-interview. Re-emits the
+   *  current state and replays the appropriate prompt based on where the interview
+   *  actually is, so resume works from any state without the client guessing. */
+  async resumeInterview(interviewId: string) {
+    const interview = await this.getInterview(interviewId);
+    const idx = interview.currentQuestionIndex ?? 0;
+
+    switch (interview.state) {
+      case $Enums.InterviewState.AGENT_GREETING:
+        await this.startGreeting(interviewId);
+        return { resumed: true, state: interview.state };
+
+      // Mid-question states: replay the current question; the candidate answers
+      // again (the in-progress recording was lost on reload anyway).
+      case $Enums.InterviewState.ASKING_QUESTION:
+      case $Enums.InterviewState.LISTENING_ANSWER:
+      case $Enums.InterviewState.PROCESSING_ANSWER:
+      case $Enums.InterviewState.AGENT_RESPONSE:
+      case $Enums.InterviewState.NEXT_QUESTION:
+        await this.askQuestion(interviewId, idx);
+        return { resumed: true, state: interview.state };
+
+      // Already finished — just push the terminal state so the page shows the
+      // completion screen instead of trying to re-enter the room.
+      case $Enums.InterviewState.COMPLETED:
+      case $Enums.InterviewState.REPORT_GENERATING:
+      case $Enums.InterviewState.REPORT_READY:
+      case $Enums.InterviewState.FAILED:
+        this.gateway.emitStateChange(interviewId, interview.state);
+        return { resumed: false, state: interview.state };
+
+      // Not started yet (INIT / CONSENT_PENDING / READY_CHECK): begin the greeting.
+      default:
+        await this.startGreeting(interviewId);
+        return { resumed: true, state: interview.state };
+    }
   }
 
   /** Speaks an improvised follow-up for the current question and records it in

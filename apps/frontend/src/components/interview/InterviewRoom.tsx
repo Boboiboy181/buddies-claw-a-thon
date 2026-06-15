@@ -88,7 +88,8 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       socket.emitAnswerSubmitted(questionId);
-      await orchestrate('advance');
+      // The backend advances automatically once the answer is saved; the next
+      // question / follow-up arrives over the socket (agent_speak). No second call.
     } catch {
       toast.error('Gửi câu trả lời thất bại. Vui lòng thử lại.');
       setPhase('listening');
@@ -271,12 +272,10 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       startedRef.current = true;
       socket.emitCandidateJoined();
       try {
-        if (interview.state === 'READY_CHECK' || interview.state === 'CONSENT_PENDING' || interview.state === 'INIT') {
-          await orchestrate('start-greeting');
-        } else {
-          // Rejoin mid-interview: replay the current question
-          await orchestrate(`next-question?index=${interview.currentQuestionIndex ?? 0}`);
-        }
+        // The server decides what to play based on the interview's actual state:
+        // greeting for a fresh start, or a replay of the current question when the
+        // candidate reloaded mid-interview. Idempotent, so a reload resumes cleanly.
+        await orchestrate('resume');
       } catch {
         setPhase('failed');
         setAgentText('Không bắt đầu được phỏng vấn. Vui lòng tải lại trang.');
