@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
@@ -60,5 +60,13 @@ export class JobsService {
       where: { id },
       data: { status: $Enums.JobStatus.ARCHIVED },
     });
+  }
+
+  async remove(id: string) {
+    const job = await this.findOne(id);
+    if (job._count.interviews > 0) {
+      throw new BadRequestException('Job has associated interviews and cannot be deleted.');
+    }
+    await this.prisma.job.delete({ where: { id } });
   }
 }

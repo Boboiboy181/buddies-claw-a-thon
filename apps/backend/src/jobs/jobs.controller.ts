@@ -36,4 +36,9 @@ export class JobsController {
   archive(@Param('id') id: string) {
     return this.jobsService.archive(id);
   }
+
+  @Delete(':id/force')
+  remove(@Param('id') id: string) {
+    return this.jobsService.remove(id);
+  }
 }
