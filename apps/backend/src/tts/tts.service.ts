@@ -36,8 +36,29 @@ export class TtsService {
     const agentbaseModel = this.readOptional('TTS_MODEL');
     const openAiApiKey = this.readOptional('OPENAI_API_KEY');
 
+    // An explicit TTS_PROVIDER overrides the auto-detection below. Without this,
+    // setting TTS_PROVIDER=openai is silently ignored whenever LLM_API_KEY +
+    // TTS_MODEL happen to be set, and TTS falls through to the AgentBase route.
+    const forced = this.readOptional('TTS_PROVIDER')?.toLowerCase();
+    if (forced === 'openai') {
+      if (!openAiApiKey) throw new Error('TTS_PROVIDER=openai but OPENAI_API_KEY is not set');
+      this.provider = 'openai';
+      this.openai = new OpenAI({ apiKey: openAiApiKey });
+      this.model = this.config.get('OPENAI_TTS_MODEL', 'tts-1');
+      this.geminiVoice = DEFAULT_GEMINI_VOICE;
+      this.audioFormat = { extension: 'mp3', contentType: 'audio/mpeg' };
+      this.logger.log(`Using direct OpenAI TTS with model "${this.model}" (forced via TTS_PROVIDER)`);
+      return;
+    }
+    if (forced === 'elevenlabs' && !elevenLabsApiKey) {
+      throw new Error('TTS_PROVIDER=elevenlabs but ELEVENLABS_API_KEY is not set');
+    }
+    if (forced === 'agentbase' && !(agentbaseApiKey && agentbaseModel)) {
+      throw new Error('TTS_PROVIDER=agentbase but LLM_API_KEY + TTS_MODEL are not set');
+    }
+
     // ElevenLabs takes priority when configured — highest-fidelity voice.
-    if (elevenLabsApiKey) {
+    if (elevenLabsApiKey && forced !== 'agentbase') {
       this.provider = 'elevenlabs';
       this.apiKey = elevenLabsApiKey;
       this.baseUrl = this.config.get('ELEVENLABS_BASE_URL', ELEVENLABS_BASE_URL).replace(/\/+$/, '');
