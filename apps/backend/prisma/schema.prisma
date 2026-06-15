@@ -222,6 +222,7 @@ model InterviewAnswer {
   durationSeconds Int?
   followUpCount   Int      @default(0)
   analysisJson    Json?
+  audioMetricsJson Json?
   createdAt       DateTime @default(now())
 
   interview Interview         @relation(fields: [interviewId], references: [id], onDelete: Cascade)
