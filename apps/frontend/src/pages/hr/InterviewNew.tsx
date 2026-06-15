@@ -63,7 +63,7 @@ export default function InterviewNew() {
   }, [cvState]);
 
   const setCvRow = (idx: number, patch: Partial<typeof cvState[0]>) =>
-    setCvState(prev => ({ ...prev, [idx]: { fileName: null, previewUrl: null, isPdf: false, parsing: false, ...prev[idx], ...patch } }));
+    setCvState(prev => ({ ...prev, [idx]: { ...{ fileName: null, previewUrl: null, isPdf: false, parsing: false }, ...prev[idx], ...patch } }));
 
   const handleCvUpload = async (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
