@@ -1,9 +1,10 @@
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Controller, useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileText, Link, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,46 @@ interface JobFormData {
 
 export default function JobNew() {
   const navigate = useNavigate();
-  const { register, handleSubmit, control } = useForm<JobFormData>();
+  const { register, handleSubmit, control, setValue } = useForm<JobFormData>();
+
+  const [urlInput, setUrlInput] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [jdParsing, setJdParsing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const parseFromUrl = async () => {
+    if (!urlInput.trim()) return;
+    setJdParsing(true);
+    try {
+      const { data } = await api.post('/jobs/parse-jd', { url: urlInput.trim() });
+      setValue('jdRawText', data.jdRawText, { shouldDirty: true });
+      setShowUrlInput(false);
+      setUrlInput('');
+      toast.success('JD imported from URL.');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? 'Failed to import from URL.');
+    } finally {
+      setJdParsing(false);
+    }
+  };
+
+  const parseFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setJdParsing(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await api.post('/jobs/parse-jd', form);
+      setValue('jdRawText', data.jdRawText, { shouldDirty: true });
+      toast.success('JD extracted from file.');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? 'Failed to read file.');
+    } finally {
+      setJdParsing(false);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: (data: JobFormData) => api.post('/jobs', data).then(r => r.data),
@@ -117,10 +157,67 @@ export default function JobNew() {
         </PageBlock>
 
         <PageBlock>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle>Job Description *</CardTitle>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                className="hidden"
+                onChange={parseFromFile}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-lg"
+                disabled={jdParsing}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FileText data-icon="inline-start" />
+                Upload JD
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-lg"
+                disabled={jdParsing}
+                onClick={() => setShowUrlInput(v => !v)}
+              >
+                <Link data-icon="inline-start" />
+                Import URL
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
+            {showUrlInput && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://example.com/careers/senior-engineer"
+                  value={urlInput}
+                  onChange={e => setUrlInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), parseFromUrl())}
+                  className="h-10"
+                  disabled={jdParsing}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 shrink-0 rounded-lg px-4"
+                  disabled={jdParsing || !urlInput.trim()}
+                  onClick={parseFromUrl}
+                >
+                  {jdParsing ? <Loader2 className="size-4 animate-spin" /> : 'Import'}
+                </Button>
+              </div>
+            )}
+            {jdParsing && !showUrlInput && (
+              <div className="flex h-16 items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Extracting job description…
+              </div>
+            )}
             <Controller
               control={control}
               name="jdRawText"
@@ -130,7 +227,7 @@ export default function JobNew() {
                   <RichTextEditor
                     value={field.value || ''}
                     onChange={field.onChange}
-                    placeholder="Paste or write the full job description here..."
+                    placeholder="Paste or write the full job description here, or import via URL / file above."
                   />
                   {fieldState.error && (
                     <p className="mt-2 text-sm text-destructive">{fieldState.error.message}</p>
