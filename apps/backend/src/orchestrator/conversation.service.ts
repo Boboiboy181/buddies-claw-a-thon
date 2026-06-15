@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LlmService } from '../llm/llm.service';
+import { htmlToText } from '../common/html.util';
 
 export interface TurnContext {
   jobTitle: string;
@@ -52,7 +53,7 @@ Return JSON only: {"action": "follow_up" | "next", "say": "the follow-up questio
     const userPrompt = `Job: ${ctx.jobTitle}
 
 Job description (context):
-${ctx.jdRawText.slice(0, 1500)}
+${htmlToText(ctx.jdRawText).slice(0, 1500)}
 
 Current planned question:
 ${ctx.questionText}

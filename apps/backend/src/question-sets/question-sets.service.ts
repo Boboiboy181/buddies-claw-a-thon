@@ -50,8 +50,10 @@ export class QuestionSetsService {
         generatedFromJdHash: jdHash,
         createdBy: userId,
         questions: {
-          create: generated.questions.map((q) => ({
-            order: q.order,
+          // Hard cap to the fixed 5-slot structure, re-numbering 1..5 so a stray
+          // LLM order/count never leaks into the interview.
+          create: generated.questions.slice(0, 5).map((q, i) => ({
+            order: i + 1,
             text: q.text,
             category: (q.category.toUpperCase() as any) in $Enums.QuestionCategory
               ? (q.category.toUpperCase() as $Enums.QuestionCategory)

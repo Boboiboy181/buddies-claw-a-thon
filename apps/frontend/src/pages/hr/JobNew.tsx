@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { PageBlock } from '@/components/page-block';
 import { PageHeader } from '@/components/page-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor, isRichTextEmpty } from '@/components/ui/rich-text-editor';
 
 interface JobFormData {
   title: string;
@@ -121,11 +121,22 @@ export default function JobNew() {
             <CardTitle>Job Description *</CardTitle>
           </CardHeader>
           <CardContent>
-            <Textarea
-              {...register('jdRawText', { required: true })}
-              rows={14}
-              className="font-mono text-sm"
-              placeholder="Paste full job description here..."
+            <Controller
+              control={control}
+              name="jdRawText"
+              rules={{ validate: (v) => !isRichTextEmpty(v) || 'Job description is required' }}
+              render={({ field, fieldState }) => (
+                <>
+                  <RichTextEditor
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    placeholder="Paste or write the full job description here..."
+                  />
+                  {fieldState.error && (
+                    <p className="mt-2 text-sm text-destructive">{fieldState.error.message}</p>
+                  )}
+                </>
+              )}
             />
           </CardContent>
         </PageBlock>

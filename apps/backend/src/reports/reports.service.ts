@@ -5,6 +5,7 @@ import { $Enums } from '@prisma/client';
 import { LlmService } from '../llm/llm.service';
 import { MailService } from '../mail/mail.service';
 import { reportReady } from '../mail/mail.templates';
+import { htmlToText } from '../common/html.util';
 
 @Injectable()
 export class ReportsService {
@@ -57,7 +58,7 @@ CV:
 ${interview.candidate.cvParsedText || 'Not provided'}
 
 Job Description:
-${interview.job.jdRawText}
+${htmlToText(interview.job.jdRawText)}
 
 Interview Q&A:
 ${qaText}
