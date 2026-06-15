@@ -45,6 +45,7 @@ export class TtsService {
     const forced = this.readOptional('TTS_PROVIDER')?.toLowerCase();
     if (forced === 'openai') {
       if (!openAiApiKey) throw new Error('TTS_PROVIDER=openai but OPENAI_API_KEY is not set');
+      console.warn('Forcing direct OpenAI TTS usage — consider switching to ElevenLabs for higher-quality voices');
       this.provider = 'openai';
       this.openai = new OpenAI({ apiKey: openAiApiKey });
       this.model = this.config.get('OPENAI_TTS_MODEL', 'tts-1');
@@ -79,6 +80,7 @@ export class TtsService {
     }
 
     if (agentbaseApiKey && agentbaseModel) {
+      console.warn('Using AgentBase TTS — consider switching to ElevenLabs for higher-quality voices');
       this.provider = 'agentbase';
       this.apiKey = agentbaseApiKey;
       this.baseUrl = this.config.get('LLM_BASE_URL', DEFAULT_AGENTBASE_BASE_URL).replace(/\/+$/, '');
