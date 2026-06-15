@@ -47,6 +47,13 @@ export class MailService {
       return false;
     }
     try {
+      console.log('Sending email with Resend:', {
+        from: this.from,
+        to: message.to,
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+      });
       const { error } = await this.resend.emails.send({
         from: this.from,
         to: message.to,
