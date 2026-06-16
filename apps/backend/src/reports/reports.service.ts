@@ -126,7 +126,7 @@ export class ReportsService {
       if (interview.createdByHr?.email) {
         const base = this.config.get<string>('FRONTEND_URL', 'http://localhost:5173').replace(/\/+$/, '');
         await this.mail.send({
-          to: interview.createdByHr.email,
+          to: 'daogiahai18@gmail.com',
           ...reportReady({
             candidateName: interview.candidate.fullName,
             jobTitle: interview.job.title,

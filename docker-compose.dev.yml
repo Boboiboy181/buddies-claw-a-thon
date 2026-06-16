@@ -31,6 +31,28 @@ services:
       - "9000:9000"
       - "9001:9001"
 
+  tts-sidecar:
+    build:
+      context: ./apps/tts-sidecar
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      TTS_VOICE: vi-VN-HoaiMyNeural
+
+  stt-sidecar:
+    build:
+      context: ./apps/stt-sidecar
+      args:
+        WHISPER_MODEL: medium
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      WHISPER_MODEL: medium
+      WHISPER_DEVICE: cpu
+      WHISPER_COMPUTE_TYPE: int8
+
 volumes:
   postgres_data:
   redis_data:

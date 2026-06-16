@@ -115,8 +115,9 @@ export class OrchestratorController {
   /** Re-syncs a candidate who reloaded the page mid-interview: re-emits the
    *  current state and replays the current prompt. Idempotent. */
   @Post('resume')
-  resume(@Param('id') id: string) {
-    return this.orchestrator.resumeInterview(id);
+  async resume(@Param('id') id: string) {
+    const result = await this.orchestrator.resumeInterview(id, { asyncReplay: true });
+    return { ok: true, ...result };
   }
 
   @Post('finish')

@@ -56,6 +56,8 @@ export interface AgentSpeakEvent {
   type: 'greeting' | 'question' | 'closing';
   text: string;
   audioUrl: string;
+  /** Base64-encoded MP3/WAV audio, sent directly when freshly synthesized to skip the S3 round-trip. */
+  audioData?: string;
   questionId?: string;
 }
 

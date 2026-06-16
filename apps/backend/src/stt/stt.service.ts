@@ -25,7 +25,7 @@ const DEFAULT_ELEVENLABS_STT_MODEL = 'scribe_v2';
 @Injectable()
 export class SttService {
   private readonly logger = new Logger(SttService.name);
-  private readonly provider: 'elevenlabs' | 'agentbase' | 'openai';
+  private readonly provider: 'elevenlabs' | 'agentbase' | 'whisper' | 'openai';
   private readonly client?: OpenAI;
   private readonly model: string;
   private readonly baseUrl?: string;
@@ -56,13 +56,36 @@ export class SttService {
     if (forced === 'openai') {
       if (!openAiApiKey) throw new Error('STT_PROVIDER=openai but OPENAI_API_KEY is not set');
       this.provider = 'openai';
-      this.client = new OpenAI({ apiKey: openAiApiKey });
+      this.client = new OpenAI({ apiKey: openAiApiKey, timeout: 60_000 });
       this.model = this.config.get('OPENAI_STT_MODEL', 'whisper-1');
       this.logger.log(`Using direct OpenAI STT with model "${this.model}" (forced via STT_PROVIDER)`);
       return;
     }
+    if (forced === 'whisper') {
+      if (!agentbaseSttBaseUrl) throw new Error('STT_PROVIDER=whisper but STT_BASE_URL is not set');
+      this.provider = 'whisper';
+      this.baseUrl = agentbaseSttBaseUrl.replace(/\/+$/, '');
+      this.model = agentbaseModel ?? 'medium';
+      this.client = new OpenAI({ apiKey: 'not-needed', baseURL: this.baseUrl, timeout: 60_000 });
+      this.logger.log(`Using faster-whisper sidecar at ${this.baseUrl} model="${this.model}"`);
+      return;
+    }
     if (forced === 'agentbase' && !(agentbaseApiKey && agentbaseModel && agentbaseSttBaseUrl)) {
       throw new Error('STT_PROVIDER=agentbase but LLM_API_KEY + STT_MODEL + STT_BASE_URL are not set');
+    }
+
+    // Auto-detect: whisper sidecar when STT_BASE_URL is set without explicit agentbase forcing
+    if (agentbaseSttBaseUrl && !forced) {
+      this.provider = 'whisper';
+      this.baseUrl = agentbaseSttBaseUrl.replace(/\/+$/, '');
+      this.model = agentbaseModel ?? 'medium';
+      this.client = new OpenAI({
+        apiKey: agentbaseApiKey ?? 'not-needed',
+        baseURL: this.baseUrl,
+        timeout: 60_000,
+      });
+      this.logger.log(`Using faster-whisper sidecar at ${this.baseUrl} model="${this.model}"`);
+      return;
     }
 
     if (elevenLabsApiKey && forced !== 'agentbase') {
@@ -80,9 +103,10 @@ export class SttService {
       this.client = new OpenAI({
         apiKey: agentbaseApiKey,
         baseURL: agentbaseSttBaseUrl.replace(/\/+$/, ''),
+        timeout: 60_000,
       });
       this.model = agentbaseModel;
-      this.logger.log(`Using AgentBase STT endpoint with model "${this.model}"`);
+      this.logger.log(`Using AgentBase STT endpoint at ${agentbaseSttBaseUrl} model="${this.model}"`);
       return;
     }
 
@@ -93,7 +117,7 @@ export class SttService {
     }
 
     this.provider = 'openai';
-    this.client = new OpenAI({ apiKey: openAiApiKey });
+    this.client = new OpenAI({ apiKey: openAiApiKey, timeout: 60_000 });
     this.model = this.config.get('OPENAI_STT_MODEL', 'whisper-1');
     this.logger.log(`Using direct OpenAI STT with model "${this.model}"`);
   }
@@ -112,9 +136,13 @@ export class SttService {
   ): Promise<TranscriptionResult> {
     const ext = filename.split('.').pop()?.toLowerCase() ?? 'mp3';
     const mime = MIME_BY_EXT[ext] ?? 'audio/mpeg';
+    this.logger.log(`STT call [${this.provider}] file=${filename} bytes=${audioBuffer.length} lang=${language}`);
+    const t0 = Date.now();
 
     if (this.provider === 'elevenlabs') {
-      return this.transcribeElevenLabs(audioBuffer, filename, mime, language);
+      const result = await this.transcribeElevenLabs(audioBuffer, filename, mime, language);
+      this.logger.log(`STT done [${this.provider}] file=${filename} bytes=${audioBuffer.length} ms=${Date.now() - t0} words=${result.text.split(/\s+/).filter(Boolean).length}`);
+      return result;
     }
 
     try {
@@ -125,7 +153,7 @@ export class SttService {
         response_format: 'verbose_json',
       } as any)) as any;
 
-      return {
+      const result: TranscriptionResult = {
         text: response.text ?? '',
         durationSeconds: typeof response.duration === 'number' ? response.duration : undefined,
         segments: Array.isArray(response.segments)
@@ -138,6 +166,8 @@ export class SttService {
             }))
           : undefined,
       };
+      this.logger.log(`STT done [${this.provider}] file=${filename} bytes=${audioBuffer.length} ms=${Date.now() - t0} words=${result.text.split(/\s+/).filter(Boolean).length}`);
+      return result;
     } catch (err) {
       this.logger.warn(
         `verbose_json transcription failed (${(err as Error)?.message ?? err}); falling back to plain text`,
@@ -147,7 +177,9 @@ export class SttService {
         model: this.model,
         language,
       });
-      return { text: response.text ?? '' };
+      const result: TranscriptionResult = { text: response.text ?? '' };
+      this.logger.log(`STT done [${this.provider}] file=${filename} bytes=${audioBuffer.length} ms=${Date.now() - t0} words=${result.text.split(/\s+/).filter(Boolean).length} (plain fallback)`);
+      return result;
     }
   }
 

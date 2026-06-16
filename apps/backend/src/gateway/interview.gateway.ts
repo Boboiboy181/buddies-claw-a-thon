@@ -56,7 +56,7 @@ export class InterviewGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server.to(`interview:${interviewId}`).emit('interview_state_changed', { state, ...extra });
   }
 
-  emitAgentSpeak(interviewId: string, payload: { type: string; text: string; audioUrl: string; questionId?: string }) {
+  emitAgentSpeak(interviewId: string, payload: { type: string; text: string; audioUrl?: string; audioData?: string; questionId?: string }) {
     this.server.to(`interview:${interviewId}`).emit('agent_speak', payload);
   }
 

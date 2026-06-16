@@ -10,8 +10,11 @@ const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io';
 const DEFAULT_ELEVENLABS_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel — override via ELEVENLABS_VOICE_ID
 const DEFAULT_ELEVENLABS_TTS_MODEL = 'eleven_v3';
 const DEFAULT_ELEVENLABS_OUTPUT_FORMAT = 'mp3_44100_128';
+const DEFAULT_EDGE_TTS_VOICE = 'vi-VN-HoaiMyNeural';
 
-export type TtsVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+// gpt-4o-mini-tts / gpt-4o-tts add coral, sage, river, ash, ballad, verse
+export type TtsVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
+  | 'coral' | 'sage' | 'river' | 'ash' | 'ballad' | 'verse';
 
 export interface TtsAudioFormat {
   extension: 'mp3' | 'wav';
@@ -21,16 +24,19 @@ export interface TtsAudioFormat {
 @Injectable()
 export class TtsService {
   private readonly logger = new Logger(TtsService.name);
-  private readonly provider: 'elevenlabs' | 'agentbase' | 'openai';
+  private readonly provider: 'elevenlabs' | 'agentbase' | 'openai' | 'edgetts';
   private readonly model: string;
   private readonly baseUrl?: string;
   private readonly apiKey?: string;
   private readonly geminiVoice: string;
   private readonly elevenVoiceId?: string;
+  private readonly edgeTtsVoice: string;
+  private readonly openaiVoice: TtsVoice;
+  private readonly openaiInstructions?: string;
   private elevenlabs?: ElevenLabsClient;
   private openai?: OpenAI;
 
-  /** Output format differs by provider: AgentBase returns raw PCM (wrapped to WAV), OpenAI returns MP3. */
+  /** Output format differs by provider: AgentBase returns raw PCM (wrapped to WAV), others return MP3. */
   readonly audioFormat: TtsAudioFormat;
 
   constructor(private config: ConfigService) {
@@ -38,20 +44,33 @@ export class TtsService {
     const agentbaseApiKey = this.readOptional('LLM_API_KEY');
     const agentbaseModel = this.readOptional('TTS_MODEL');
     const openAiApiKey = this.readOptional('OPENAI_API_KEY');
+    const edgeTtsUrl = this.readOptional('EDGE_TTS_URL');
 
-    // An explicit TTS_PROVIDER overrides the auto-detection below. Without this,
-    // setting TTS_PROVIDER=openai is silently ignored whenever LLM_API_KEY +
-    // TTS_MODEL happen to be set, and TTS falls through to the AgentBase route.
     const forced = this.readOptional('TTS_PROVIDER')?.toLowerCase();
-    if (forced === 'openai') {
-      if (!openAiApiKey) throw new Error('TTS_PROVIDER=openai but OPENAI_API_KEY is not set');
-      console.warn('Forcing direct OpenAI TTS usage — consider switching to ElevenLabs for higher-quality voices');
-      this.provider = 'openai';
-      this.openai = new OpenAI({ apiKey: openAiApiKey });
-      this.model = this.config.get('OPENAI_TTS_MODEL', 'tts-1');
+
+    if (forced === 'edgetts') {
+      if (!edgeTtsUrl) throw new Error('TTS_PROVIDER=edgetts but EDGE_TTS_URL is not set');
+      this.provider = 'edgetts';
+      this.baseUrl = edgeTtsUrl.replace(/\/+$/, '');
+      this.edgeTtsVoice = this.config.get('EDGE_TTS_VOICE', DEFAULT_EDGE_TTS_VOICE);
+      this.model = 'edge-tts';
       this.geminiVoice = DEFAULT_GEMINI_VOICE;
       this.audioFormat = { extension: 'mp3', contentType: 'audio/mpeg' };
-      this.logger.log(`Using direct OpenAI TTS with model "${this.model}" (forced via TTS_PROVIDER)`);
+      this.logger.log(`Using edge-tts sidecar at ${this.baseUrl} voice="${this.edgeTtsVoice}"`);
+      return;
+    }
+
+    if (forced === 'openai') {
+      if (!openAiApiKey) throw new Error('TTS_PROVIDER=openai but OPENAI_API_KEY is not set');
+      this.provider = 'openai';
+      this.openai = new OpenAI({ apiKey: openAiApiKey, timeout: 30_000 });
+      this.model = this.config.get('OPENAI_TTS_MODEL', 'tts-1');
+      this.openaiVoice = this.config.get('OPENAI_TTS_VOICE', 'coral') as TtsVoice;
+      this.openaiInstructions = this.readOptional('OPENAI_TTS_INSTRUCTIONS');
+      this.geminiVoice = DEFAULT_GEMINI_VOICE;
+      this.edgeTtsVoice = DEFAULT_EDGE_TTS_VOICE;
+      this.audioFormat = { extension: 'mp3', contentType: 'audio/mpeg' };
+      this.logger.log(`Using direct OpenAI TTS model="${this.model}" voice="${this.openaiVoice}" (forced via TTS_PROVIDER)`);
       return;
     }
     if (forced === 'elevenlabs' && !elevenLabsApiKey) {
@@ -61,7 +80,8 @@ export class TtsService {
       throw new Error('TTS_PROVIDER=agentbase but LLM_API_KEY + TTS_MODEL are not set');
     }
 
-    // ElevenLabs takes priority when configured — highest-fidelity voice.
+    // Priority: ElevenLabs > edge-tts > AgentBase > OpenAI
+    // ElevenLabs first — best multilingual quality (handles Vietnamese+English code-switching).
     if (elevenLabsApiKey && forced !== 'agentbase') {
       this.provider = 'elevenlabs';
       this.apiKey = elevenLabsApiKey;
@@ -74,6 +94,7 @@ export class TtsService {
         maxRetries: 3,
       });
       this.geminiVoice = DEFAULT_GEMINI_VOICE;
+      this.edgeTtsVoice = DEFAULT_EDGE_TTS_VOICE;
       this.audioFormat = { extension: 'mp3', contentType: 'audio/mpeg' };
       this.logger.log(`Using ElevenLabs TTS with model "${this.model}", voice "${this.elevenVoiceId}"`);
       return;
@@ -86,39 +107,80 @@ export class TtsService {
       this.baseUrl = this.config.get('LLM_BASE_URL', DEFAULT_AGENTBASE_BASE_URL).replace(/\/+$/, '');
       this.model = agentbaseModel;
       this.geminiVoice = this.config.get('TTS_VOICE', DEFAULT_GEMINI_VOICE);
+      this.edgeTtsVoice = DEFAULT_EDGE_TTS_VOICE;
       this.audioFormat = { extension: 'wav', contentType: 'audio/wav' };
       this.logger.log(`Using AgentBase TTS (/speech/tts) with model "${this.model}", voice "${this.geminiVoice}"`);
       return;
     }
 
     if (!openAiApiKey) {
-      throw new Error('Missing LLM_API_KEY + TTS_MODEL for AgentBase or OPENAI_API_KEY for direct OpenAI usage');
+      throw new Error('Missing LLM_API_KEY + TTS_MODEL for AgentBase, OPENAI_API_KEY for OpenAI, or EDGE_TTS_URL for edge-tts sidecar');
     }
 
     this.provider = 'openai';
-    this.openai = new OpenAI({ apiKey: openAiApiKey });
+    this.openai = new OpenAI({ apiKey: openAiApiKey, timeout: 30_000 });
     this.model = this.config.get('OPENAI_TTS_MODEL', 'tts-1');
+    this.openaiVoice = this.config.get('OPENAI_TTS_VOICE', 'coral') as TtsVoice;
+    this.openaiInstructions = this.readOptional('OPENAI_TTS_INSTRUCTIONS');
     this.geminiVoice = DEFAULT_GEMINI_VOICE;
+    this.edgeTtsVoice = DEFAULT_EDGE_TTS_VOICE;
     this.audioFormat = { extension: 'mp3', contentType: 'audio/mpeg' };
-    this.logger.log(`Using direct OpenAI TTS with model "${this.model}"`);
+    this.logger.log(`Using direct OpenAI TTS model="${this.model}" voice="${this.openaiVoice}"`);
   }
 
-  async synthesize(text: string, voice: TtsVoice = 'nova'): Promise<Buffer> {
-    if (this.provider === 'elevenlabs') {
-      return this.synthesizeElevenLabs(text);
-    }
-    if (this.provider === 'agentbase') {
-      return this.synthesizeAgentbase(text);
+  async synthesize(text: string): Promise<Buffer> {
+    const label = text.length > 60 ? `${text.slice(0, 57)}…` : text;
+    this.logger.log(`TTS call [${this.provider}] chars=${text.length} preview="${label}"`);
+    const t0 = Date.now();
+
+    let buffer: Buffer;
+    if (this.provider === 'edgetts') {
+      buffer = await this.synthesizeEdgeTts(text);
+    } else if (this.provider === 'elevenlabs') {
+      buffer = await this.synthesizeElevenLabs(text);
+    } else if (this.provider === 'agentbase') {
+      buffer = await this.synthesizeAgentbase(text);
+    } else {
+      const response = await this.openai!.audio.speech.create({
+        model: this.model,
+        voice: this.openaiVoice,
+        input: text,
+        response_format: 'mp3',
+        ...(this.openaiInstructions ? { instructions: this.openaiInstructions } : {}),
+      } as any);
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
     }
 
-    const response = await this.openai!.audio.speech.create({
-      model: this.model,
-      voice,
-      input: text,
-      response_format: 'mp3',
-    });
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    this.logger.log(`TTS done  [${this.provider}] chars=${text.length} bytes=${buffer.length} ms=${Date.now() - t0}`);
+    return buffer;
+  }
+
+  /** edge-tts sidecar: POST /v1/audio/speech, returns MP3.
+   *  Retries on 5xx — the upstream Microsoft TTS service occasionally drops requests. */
+  private async synthesizeEdgeTts(text: string): Promise<Buffer> {
+    const form = new URLSearchParams();
+    form.append('input', text);
+    form.append('voice', this.edgeTtsVoice);
+    const body = form.toString();
+
+    const MAX_RETRIES = 2;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const { data } = await axios.post(`${this.baseUrl}/v1/audio/speech`, body, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          responseType: 'arraybuffer',
+          timeout: 30_000,
+        });
+        return Buffer.from(data);
+      } catch (err: any) {
+        const status: number | undefined = err?.response?.status;
+        if (!status || status < 500 || attempt >= MAX_RETRIES) throw err;
+        const waitMs = (attempt + 1) * 2_000;
+        this.logger.warn(`edge-tts sidecar ${status}, retry ${attempt + 1}/${MAX_RETRIES} in ${waitMs}ms`);
+        await new Promise((r) => setTimeout(r, waitMs));
+      }
+    }
   }
 
   /** ElevenLabs TTS: returns MP3 audio. Retries on 429/5xx (and transient

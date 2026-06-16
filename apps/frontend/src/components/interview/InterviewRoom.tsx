@@ -134,7 +134,9 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       }
       const audio = audioRef.current;
       if (!audio) return;
-      audio.src = e.audioUrl;
+      audio.src = e.audioData
+        ? `data:audio/${e.audioData.startsWith('UklGR') ? 'wav' : 'mpeg'};base64,${e.audioData}`
+        : e.audioUrl;
       audio.dataset.speakType = e.type;
       audio.play().catch(() => {
         // Autoplay blocked — let the candidate tap to play
@@ -328,128 +330,182 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
               : 'Đang kết nối';
 
   return (
-    <div className="grid min-h-[calc(100vh-2rem)] w-full gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
-      <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-950 shadow-xl shadow-black/30">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white sm:px-5">
+    <div className="grid h-full w-full gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+      {/* ── Main video panel ── */}
+      <main className="flex min-h-0 flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60 ring-1 ring-white/8">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 px-5 py-3.5">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{interview.job.title}</p>
-            <p className="truncate text-xs text-white/55">{interview.candidate.fullName}</p>
+            <p className="truncate text-sm font-bold text-white">{interview.job.title}</p>
+            <p className="truncate text-xs text-slate-400">{interview.candidate.fullName}</p>
           </div>
-          <Badge variant="secondary" className="shrink-0 bg-white/10 text-white">
-            {progressLabel}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-500/15 px-3 py-1.5 ring-1 ring-indigo-500/30">
+            <span className="size-1.5 rounded-full bg-indigo-400" />
+            <span className="text-xs font-semibold text-indigo-300">{progressLabel}</span>
+          </div>
         </div>
 
+        {/* Video area */}
         <div className="relative flex min-h-0 flex-1 items-center bg-black">
           <video
             ref={videoRef}
             autoPlay
             muted
             playsInline
-            className="aspect-video max-h-full w-full bg-black object-cover"
+            className="aspect-video max-h-full w-full object-cover"
           />
 
-          <div className="absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-3 sm:p-4">
-            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-xs font-medium text-white shadow-sm backdrop-blur">
-              <Video className="size-3.5" />
+          {/* Top status badges */}
+          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-4">
+            <div className="flex items-center gap-2 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/10">
+              <span className="size-2 animate-pulse rounded-full bg-red-500" />
+              <Video className="size-3" />
               Camera đang ghi
             </div>
-            <div className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-xs font-medium text-white shadow-sm backdrop-blur">
+            <div
+              className={cn(
+                'rounded-full px-3 py-1.5 text-xs font-semibold backdrop-blur-md ring-1 transition-all duration-300',
+                phase === 'listening'
+                  ? 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/30'
+                  : phase === 'agent_speaking'
+                    ? 'bg-indigo-500/20 text-indigo-300 ring-indigo-500/30'
+                    : 'bg-black/55 text-white/75 ring-white/10',
+              )}
+            >
               {phaseLabel}
             </div>
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-4 pb-4 pt-16 sm:px-6 sm:pb-6">
-            <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center">
-              <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/85 backdrop-blur">
-                <span
-                  className={cn(
-                    'flex size-7 items-center justify-center rounded-full',
-                    phase === 'agent_speaking' && 'bg-primary text-primary-foreground',
-                    phase === 'listening' && 'bg-emerald-600 text-white',
-                    phase !== 'agent_speaking' && phase !== 'listening' && 'bg-white/15 text-white',
-                  )}
-                >
-                  {phase === 'processing' || phase === 'connecting' ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : phase === 'listening' ? (
-                    <Mic className="size-4" />
-                  ) : (
-                    <Bot className="size-4" />
-                  )}
-                </span>
+          {/* Bottom agent text overlay */}
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent px-6 pb-6 pt-24">
+            <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
+              {/* Status pill */}
+              <div
+                className={cn(
+                  'flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-sm ring-1 transition-all duration-300',
+                  phase === 'agent_speaking'
+                    ? 'bg-indigo-500/25 text-indigo-200 ring-indigo-400/30'
+                    : phase === 'listening'
+                      ? 'bg-emerald-500/25 text-emerald-200 ring-emerald-400/30'
+                      : 'bg-white/10 text-white/70 ring-white/15',
+                )}
+              >
+                {phase === 'processing' || phase === 'connecting' ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : phase === 'listening' ? (
+                  <Mic className="size-4" />
+                ) : (
+                  <Bot className="size-4" />
+                )}
                 {phaseLabel}
               </div>
 
-              <p className="text-balance text-base font-medium leading-7 text-white sm:text-xl sm:leading-9 md:text-2xl md:leading-10">
+              <p className="text-balance text-lg font-semibold leading-relaxed text-white drop-shadow-lg sm:text-xl md:text-2xl md:leading-10">
                 {agentText}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-white/10 bg-slate-950 px-4 py-3 sm:px-6">
+        {/* Control bar */}
+        <div className="bg-slate-900 px-5 py-4">
           {phase === 'listening' ? (
-            <div className="mx-auto flex max-w-4xl flex-col items-center gap-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-emerald-300">
-                <span className="size-2 animate-pulse rounded-full bg-red-500" />
-                Đang ghi âm - {formatTime(elapsed)}
-                {maxDurationRef.current ? ` / tối đa ${formatTime(maxDurationRef.current)}` : ''}
+            <div className="mx-auto flex max-w-3xl flex-col items-center gap-4">
+              {/* Timer + waveform */}
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center gap-2 text-sm font-semibold tabular-nums text-emerald-400">
+                  <span className="size-2 animate-pulse rounded-full bg-red-500" />
+                  {formatTime(elapsed)}
+                  {maxDurationRef.current && (
+                    <span className="font-normal text-white/35">/ {formatTime(maxDurationRef.current)}</span>
+                  )}
+                </div>
+
+                {/* Animated waveform bars */}
+                <div className="flex h-7 items-end gap-[3px]">
+                  {Array.from({ length: 18 }).map((_, i) => {
+                    const wave = Math.abs(Math.sin(i * 0.85)) * 0.55 + 0.45;
+                    const heightPx = Math.max(3, Math.min(28, micLevel * 220 * wave));
+                    return (
+                      <div
+                        key={i}
+                        className="w-[3px] rounded-full bg-emerald-400"
+                        style={{ height: `${heightPx}px`, transition: 'height 80ms ease' }}
+                      />
+                    );
+                  })}
+                </div>
+
+                <span className="text-xs text-white/35">Đang ghi âm</span>
               </div>
-              <div className="h-2 w-full max-w-xl overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-75"
-                  style={{ width: `${Math.min(100, micLevel * 250)}%` }}
-                />
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-3">
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-3">
                 <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-11 rounded-lg border-white/15 bg-white/10 px-5 text-white hover:bg-white/15 hover:text-white"
+                  variant="ghost"
+                  className="h-11 rounded-full border border-white/10 bg-white/5 px-5 text-white/75 hover:bg-white/10 hover:text-white"
                   onClick={() => void repeatQuestion()}
                 >
-                  <RotateCcw data-icon="inline-start" />
+                  <RotateCcw className="mr-2 size-4" />
                   Nghe lại câu hỏi
                 </Button>
                 <Button
                   size="lg"
-                  className="h-11 rounded-lg px-6"
+                  className="h-11 rounded-full bg-indigo-600 px-6 font-semibold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500"
                   onClick={() => void submitAnswer()}
                 >
-                  <CircleStop data-icon="inline-start" />
+                  <CircleStop className="mr-2 size-4" />
                   Trả lời xong
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="flex min-h-14 items-center justify-center text-center text-xs text-white/55">
-              {phase === 'agent_speaking' && 'Trợ lý đang nói, bạn sẽ trả lời sau khi audio kết thúc...'}
-              {phase === 'connecting' && <Loader2 className="animate-spin" />}
-              {phase !== 'agent_speaking' && phase !== 'connecting' && phaseLabel}
+            <div className="flex min-h-[56px] items-center justify-center">
+              {phase === 'connecting' && <Loader2 className="animate-spin text-white/30" />}
+              {phase === 'agent_speaking' && (
+                <div className="flex items-center gap-3 text-sm text-white/45">
+                  {/* Animated speaking bars */}
+                  <div className="flex h-4 items-end gap-[3px]">
+                    {[0.6, 1, 0.75, 1, 0.6].map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-[3px] animate-pulse rounded-full bg-indigo-400"
+                        style={{ height: `${h * 100}%`, animationDelay: `${i * 120}ms` }}
+                      />
+                    ))}
+                  </div>
+                  Trợ lý đang nói, bạn sẽ trả lời sau khi audio kết thúc...
+                </div>
+              )}
+              {phase !== 'agent_speaking' && phase !== 'connecting' && (
+                <span className="text-sm text-white/35">{phaseLabel}</span>
+              )}
             </div>
           )}
         </div>
       </main>
 
-      <aside className="flex min-h-[420px] flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] text-white shadow-xl shadow-black/20 lg:min-h-0">
-        <div className="border-b border-white/10 px-4 py-4">
+      {/* ── Question sidebar ── */}
+      <aside className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl bg-slate-900 text-white shadow-2xl shadow-black/40 ring-1 ring-white/8 lg:min-h-0">
+        {/* Sidebar header */}
+        <div className="bg-gradient-to-br from-indigo-600/15 via-slate-900 to-slate-900 px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="truncate text-base font-semibold">Câu hỏi phỏng vấn</h2>
-              <p className="mt-1 text-xs text-white/55">
+              <h2 className="text-sm font-bold text-white">Câu hỏi phỏng vấn</h2>
+              <p className="mt-0.5 text-xs text-slate-400">
                 {visibleQuestions.length}/{totalQuestions} câu đã xuất hiện
               </p>
             </div>
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
-              <MessageSquareText className="size-5" />
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25">
+              <MessageSquareText className="size-4" />
             </div>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        {/* Questions list */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {visibleQuestions.length ? (
-            <ol className="flex flex-col gap-3">
+            <ol className="flex flex-col gap-2.5">
               {visibleQuestions.map((question, index) => {
                 const isCurrent = index === questionIndex;
                 const isCompleted = index < completedQuestionCount;
@@ -457,34 +513,60 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
                   <li
                     key={question.id}
                     className={cn(
-                      'rounded-lg border p-3 transition',
+                      'rounded-xl border p-4 transition-all duration-300',
                       isCurrent
-                        ? 'border-primary/60 bg-primary/20'
-                        : 'border-white/10 bg-white/[0.04]',
+                        ? 'border-indigo-500/40 bg-indigo-500/10 shadow-lg shadow-indigo-500/10'
+                        : 'border-white/5 bg-white/[0.03]',
                     )}
                   >
                     <div className="flex items-start gap-3">
-                      <span
+                      {/* Number / check badge */}
+                      <div
                         className={cn(
-                          'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                          isCurrent ? 'bg-primary text-primary-foreground' : 'bg-white/10 text-white',
+                          'flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-all duration-300',
+                          isCurrent
+                            ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/40'
+                            : isCompleted
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-white/8 text-white/40',
                         )}
                       >
-                        {index + 1}
-                      </span>
+                        {isCompleted && !isCurrent ? (
+                          <CheckCircle2 className="size-4" />
+                        ) : (
+                          index + 1
+                        )}
+                      </div>
+
                       <div className="min-w-0 flex-1">
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <Badge variant={isCurrent ? 'default' : 'secondary'}>
+                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={cn(
+                              'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                              isCurrent
+                                ? 'bg-indigo-500/20 text-indigo-300'
+                                : isCompleted
+                                  ? 'bg-emerald-500/15 text-emerald-400'
+                                  : 'bg-white/8 text-white/40',
+                            )}
+                          >
                             {isCurrent ? 'Đang hỏi' : isCompleted ? 'Đã trả lời' : 'Đã hỏi'}
-                          </Badge>
+                          </span>
                           {question.maxDurationSeconds && (
-                            <span className="inline-flex items-center gap-1 text-xs text-white/50">
+                            <span className="inline-flex items-center gap-1 text-xs text-white/30">
                               <Clock3 className="size-3" />
                               {formatTime(question.maxDurationSeconds)}
                             </span>
                           )}
                         </div>
-                        <p className="text-sm leading-6 text-white/90">{question.text}</p>
+                        <p
+                          className={cn(
+                            'text-sm leading-relaxed transition-colors duration-300',
+                            isCurrent ? 'text-white/95' : 'text-white/55',
+                          )}
+                        >
+                          {question.text}
+                        </p>
                       </div>
                     </div>
                   </li>
@@ -492,18 +574,21 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
               })}
             </ol>
           ) : (
-            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-center text-white/55">
-              <MessageSquareText className="size-10 text-white/35" />
-              <p className="text-sm">Câu hỏi sẽ xuất hiện tại đây khi trợ lý bắt đầu.</p>
+            <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/8">
+                <MessageSquareText className="size-5 text-white/25" />
+              </div>
+              <p className="text-sm text-white/40">Câu hỏi sẽ xuất hiện khi trợ lý bắt đầu.</p>
             </div>
           )}
         </div>
 
-        <div className="border-t border-white/10 px-4 py-3">
-          <div className="flex items-center justify-between gap-3 text-xs text-white/55">
+        {/* Sidebar footer */}
+        <div className="border-t border-white/5 px-5 py-3.5">
+          <div className="flex items-center justify-between text-xs text-white/30">
             <span>{totalQuestions - visibleQuestions.length} câu đang chờ</span>
-            <span className="inline-flex items-center gap-1">
-              <CheckCircle2 className="size-3.5" />
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="size-3" />
               Tự động cập nhật
             </span>
           </div>

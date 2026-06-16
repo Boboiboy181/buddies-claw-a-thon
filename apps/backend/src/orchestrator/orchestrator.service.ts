@@ -29,6 +29,8 @@ const DEFAULT_CLOSING_VI =
 @Injectable()
 export class InterviewOrchestratorService {
   private readonly logger = new Logger(InterviewOrchestratorService.name);
+  private readonly greetingCache = new Map<string, string>();
+  private readonly closingCache = new Map<string, string>();
 
   constructor(
     private prisma: PrismaService,
@@ -172,7 +174,14 @@ export class InterviewOrchestratorService {
       const recorder = this.livekit.isConfigured ? this.livekit : this.daily;
       recorder
         .startRecording(interview.dailyRoomName)
-        .catch((err) => this.logger.warn(`startRecording failed for ${interviewId}: ${err.message}`));
+        .catch((err) => {
+          const msg: string = err?.message ?? String(err);
+          if (msg.includes('egress minutes exceeded') || msg.includes('quota')) {
+            this.logger.warn(`Recording skipped for ${interviewId}: LiveKit egress quota exceeded — upgrade plan or unset LIVEKIT_EGRESS_S3_BUCKET to suppress`);
+          } else {
+            this.logger.warn(`startRecording failed for ${interviewId}: ${msg}`);
+          }
+        });
     }
 
     await this.runOrFail(interviewId, async () => {
@@ -187,13 +196,8 @@ export class InterviewOrchestratorService {
       this.gateway.emitStateChange(interviewId, $Enums.InterviewState.AGENT_GREETING);
 
       const greetingText = this.config.get('AGENT_GREETING_TEXT', DEFAULT_GREETING_VI);
-      const { extension, contentType } = this.tts.audioFormat;
-      const key = `interviews/${interviewId}/tts/greeting.${extension}`;
-      const buffer = await this.tts.synthesize(greetingText);
-      await this.storage.uploadBuffer(buffer, key, contentType);
-      const audioUrl = await this.storage.getSignedDownloadUrl(key);
-
-      this.gateway.emitAgentSpeak(interviewId, { type: 'greeting', text: greetingText, audioUrl });
+      const greetingAudio = await this.ensureGreetingTtsForEmit(interviewId, greetingText);
+      this.gateway.emitAgentSpeak(interviewId, { type: 'greeting', text: greetingText, ...greetingAudio });
     });
   }
 
@@ -217,13 +221,11 @@ export class InterviewOrchestratorService {
         questionId: question.id,
       });
 
-      const key = await this.ensureQuestionTts(interviewId, question);
-      const audioUrl = await this.storage.getSignedDownloadUrl(key);
-
+      const questionAudio = await this.ensureQuestionTtsForEmit(interviewId, question);
       this.gateway.emitAgentSpeak(interviewId, {
         type: 'question',
         text: question.text,
-        audioUrl,
+        ...questionAudio,
         questionId: question.id,
       });
     });
@@ -247,12 +249,11 @@ export class InterviewOrchestratorService {
         questionId: question.id,
       });
 
-      const key = await this.ensureQuestionTts(interviewId, question);
-      const audioUrl = await this.storage.getSignedDownloadUrl(key);
+      const questionAudio = await this.ensureQuestionTtsForEmit(interviewId, question);
       this.gateway.emitAgentSpeak(interviewId, {
         type: 'question',
         text: question.text,
-        audioUrl,
+        ...questionAudio,
         questionId: question.id,
       });
     });
@@ -417,13 +418,19 @@ export class InterviewOrchestratorService {
   /** Re-syncs a candidate who reloaded the browser mid-interview. Re-emits the
    *  current state and replays the appropriate prompt based on where the interview
    *  actually is, so resume works from any state without the client guessing. */
-  async resumeInterview(interviewId: string) {
+  async resumeInterview(interviewId: string, options: { asyncReplay?: boolean } = {}) {
     const interview = await this.getInterview(interviewId);
     const idx = interview.currentQuestionIndex ?? 0;
+    const asyncReplay = Boolean(options.asyncReplay);
 
     switch (interview.state) {
       case $Enums.InterviewState.AGENT_GREETING:
-        await this.startGreeting(interviewId);
+        await this.resumeReplay(
+          interviewId,
+          () => this.startGreeting(interviewId),
+          'startGreeting',
+          asyncReplay,
+        );
         return { resumed: true, state: interview.state };
 
       // Mid-question states: replay the current question; the candidate answers
@@ -433,7 +440,12 @@ export class InterviewOrchestratorService {
       case $Enums.InterviewState.PROCESSING_ANSWER:
       case $Enums.InterviewState.AGENT_RESPONSE:
       case $Enums.InterviewState.NEXT_QUESTION:
-        await this.askQuestion(interviewId, idx);
+        await this.resumeReplay(
+          interviewId,
+          () => this.askQuestion(interviewId, idx),
+          `askQuestion(${idx})`,
+          asyncReplay,
+        );
         return { resumed: true, state: interview.state };
 
       // Already finished — just push the terminal state so the page shows the
@@ -447,7 +459,12 @@ export class InterviewOrchestratorService {
 
       // Not started yet (INIT / CONSENT_PENDING / READY_CHECK): begin the greeting.
       default:
-        await this.startGreeting(interviewId);
+        await this.resumeReplay(
+          interviewId,
+          () => this.startGreeting(interviewId),
+          'startGreeting',
+          asyncReplay,
+        );
         return { resumed: true, state: interview.state };
     }
   }
@@ -475,21 +492,20 @@ export class InterviewOrchestratorService {
       const { extension, contentType } = this.tts.audioFormat;
       const key = `interviews/${interviewId}/tts/followup-${questionId}-${currentCount + 1}.${extension}`;
       const buffer = await this.tts.synthesize(say);
-      await this.storage.uploadBuffer(buffer, key, contentType);
-      const audioUrl = await this.storage.getSignedDownloadUrl(key);
-      this.gateway.emitAgentSpeak(interviewId, { type: 'question', text: say, audioUrl, questionId });
+      const audioData = buffer.toString('base64');
+      // Upload in background — don't block the WebSocket emit
+      this.storage.uploadBuffer(buffer, key, contentType).catch((err) =>
+        this.logger.warn(`Background follow-up TTS upload failed for ${questionId}: ${err.message}`),
+      );
+      this.gateway.emitAgentSpeak(interviewId, { type: 'question', text: say, audioData, questionId });
     });
   }
 
   /** Synthesizes and emits the agent's closing thank-you message (type 'closing'). */
   async playClosing(interviewId: string) {
     const closingText = this.config.get('AGENT_CLOSING_TEXT', DEFAULT_CLOSING_VI);
-    const { extension, contentType } = this.tts.audioFormat;
-    const key = `interviews/${interviewId}/tts/closing.${extension}`;
-    const buffer = await this.tts.synthesize(closingText);
-    await this.storage.uploadBuffer(buffer, key, contentType);
-    const audioUrl = await this.storage.getSignedDownloadUrl(key);
-    this.gateway.emitAgentSpeak(interviewId, { type: 'closing', text: closingText, audioUrl });
+    const closingAudio = await this.ensureClosingTtsForEmit(interviewId, closingText);
+    this.gateway.emitAgentSpeak(interviewId, { type: 'closing', text: closingText, ...closingAudio });
   }
 
   // ── Giai đoạn 9: Finish ─────────────────────────────────────────────
@@ -535,11 +551,24 @@ export class InterviewOrchestratorService {
   // ── TTS prewarm ─────────────────────────────────────────────────────
 
   async prewarmTts(interviewId: string) {
+    this.logger.log(`prewarmTts START for ${interviewId}`);
+    await this.ensureGreetingTts(
+      interviewId,
+      this.config.get('AGENT_GREETING_TEXT', DEFAULT_GREETING_VI),
+    );
+    await this.ensureClosingTts(
+      interviewId,
+      this.config.get('AGENT_CLOSING_TEXT', DEFAULT_CLOSING_VI),
+    );
+
     const questions = await this.prisma.interviewQuestion.findMany({
       where: { interviewId, ttsAudioUrl: null },
       orderBy: { order: 'asc' },
     });
-    if (questions.length === 0) return { prewarmed: 0 };
+    if (questions.length === 0) {
+      this.logger.log(`prewarmTts DONE for ${interviewId} — all questions already cached`);
+      return { prewarmed: 0 };
+    }
 
     // Sequential on purpose: the TTS provider rate-limits bursts (429),
     // and parallel synthesis of a whole question set trips it.
@@ -553,6 +582,95 @@ export class InterviewOrchestratorService {
   // ── Helpers ─────────────────────────────────────────────────────────
 
   /**
+   * For interactive emit: returns audioData (base64) when freshly synthesized
+   * so the WebSocket emit doesn't wait for S3. S3 upload runs in the background.
+   * Returns audioUrl (signed) on cache hits — S3 file already exists, just sign it.
+   */
+  private async ensureQuestionTtsForEmit(
+    interviewId: string,
+    question: { id: string; text: string; ttsAudioUrl: string | null },
+  ): Promise<{ audioUrl?: string; audioData?: string }> {
+    if (question.ttsAudioUrl) {
+      const audioUrl = await this.storage.getSignedDownloadUrl(question.ttsAudioUrl);
+      return { audioUrl };
+    }
+
+    const { extension, contentType } = this.tts.audioFormat;
+    const key = `interviews/${interviewId}/tts/${question.id}.${extension}`;
+    const buffer = await this.tts.synthesize(question.text);
+    const audioData = buffer.toString('base64');
+
+    this.storage
+      .uploadBuffer(buffer, key, contentType)
+      .then(() =>
+        this.prisma.interviewQuestion.update({
+          where: { id: question.id },
+          data: { ttsAudioUrl: key },
+        }),
+      )
+      .catch((err) =>
+        this.logger.warn(`Background TTS upload failed for question ${question.id}: ${err.message}`),
+      );
+
+    return { audioData };
+  }
+
+  private async ensureGreetingTtsForEmit(
+    interviewId: string,
+    text: string,
+  ): Promise<{ audioUrl?: string; audioData?: string }> {
+    return this.ensureFixedTtsForEmit(
+      this.greetingCache,
+      interviewId,
+      `interviews/${interviewId}/tts/greeting.${this.tts.audioFormat.extension}`,
+      text,
+      'greeting',
+    );
+  }
+
+  private async ensureClosingTtsForEmit(
+    interviewId: string,
+    text: string,
+  ): Promise<{ audioUrl?: string; audioData?: string }> {
+    return this.ensureFixedTtsForEmit(
+      this.closingCache,
+      interviewId,
+      `interviews/${interviewId}/tts/closing.${this.tts.audioFormat.extension}`,
+      text,
+      'closing',
+    );
+  }
+
+  private async ensureFixedTtsForEmit(
+    cache: Map<string, string>,
+    interviewId: string,
+    key: string,
+    text: string,
+    label: string,
+  ): Promise<{ audioUrl?: string; audioData?: string }> {
+    const cached = cache.get(interviewId);
+    if (cached) {
+      const audioUrl = await this.storage.getSignedDownloadUrl(cached);
+      return { audioUrl };
+    }
+
+    const buffer = await this.tts.synthesize(text);
+    const audioData = buffer.toString('base64');
+
+    // Optimistically mark as cached so re-calls use the key once upload completes
+    cache.set(interviewId, key);
+    this.storage
+      .uploadBuffer(buffer, key, this.tts.audioFormat.contentType)
+      .then(() => this.logger.log(`${label} TTS uploaded to S3 for ${interviewId}`))
+      .catch((err) => {
+        cache.delete(interviewId); // allow retry on next call
+        this.logger.warn(`Background ${label} TTS upload failed for ${interviewId}: ${err.message}`);
+      });
+
+    return { audioData };
+  }
+
+  /**
    * Returns the storage key for the question's TTS audio, synthesizing and
    * uploading it if not yet cached. ttsAudioUrl stores the storage key
    * (interviews/{interviewId}/tts/{questionId}.{wav|mp3}); signed URLs are
@@ -562,7 +680,10 @@ export class InterviewOrchestratorService {
     interviewId: string,
     question: { id: string; text: string; ttsAudioUrl: string | null },
   ): Promise<string> {
-    if (question.ttsAudioUrl) return question.ttsAudioUrl;
+    if (question.ttsAudioUrl) {
+      this.logger.log(`TTS cache hit (question ${question.id}) → ${question.ttsAudioUrl}`);
+      return question.ttsAudioUrl;
+    }
 
     const { extension, contentType } = this.tts.audioFormat;
     const key = `interviews/${interviewId}/tts/${question.id}.${extension}`;
@@ -573,6 +694,70 @@ export class InterviewOrchestratorService {
       data: { ttsAudioUrl: key },
     });
     return key;
+  }
+
+  private async ensureGreetingTts(interviewId: string, text: string): Promise<string> {
+    return this.ensureFixedTts(
+      this.greetingCache,
+      interviewId,
+      `interviews/${interviewId}/tts/greeting.${this.tts.audioFormat.extension}`,
+      text,
+      'greeting',
+    );
+  }
+
+  private async ensureClosingTts(interviewId: string, text: string): Promise<string> {
+    return this.ensureFixedTts(
+      this.closingCache,
+      interviewId,
+      `interviews/${interviewId}/tts/closing.${this.tts.audioFormat.extension}`,
+      text,
+      'closing',
+    );
+  }
+
+  private async ensureFixedTts(
+    cache: Map<string, string>,
+    interviewId: string,
+    key: string,
+    text: string,
+    label: string,
+  ): Promise<string> {
+    const cached = cache.get(interviewId);
+    if (cached) {
+      this.logger.log(`TTS cache hit (${label} ${interviewId}) → ${cached}`);
+      return cached;
+    }
+
+    const synthStart = Date.now();
+    const buffer = await this.tts.synthesize(text);
+    const synthMs = Date.now() - synthStart;
+
+    const uploadStart = Date.now();
+    await this.storage.uploadBuffer(buffer, key, this.tts.audioFormat.contentType);
+    const uploadMs = Date.now() - uploadStart;
+
+    cache.set(interviewId, key);
+    this.logger.log(
+      `${label} TTS ready for ${interviewId} (synthesize=${synthMs}ms, upload=${uploadMs}ms)`,
+    );
+    return key;
+  }
+
+  private async resumeReplay(
+    interviewId: string,
+    replay: () => Promise<void>,
+    label: string,
+    asyncReplay: boolean,
+  ) {
+    if (!asyncReplay) {
+      await replay();
+      return;
+    }
+
+    void replay().catch((err: any) => {
+      this.logger.error(`resume replay failed for ${interviewId} at ${label}: ${err.message}`);
+    });
   }
 
   private async getInterview(interviewId: string, include?: any) {

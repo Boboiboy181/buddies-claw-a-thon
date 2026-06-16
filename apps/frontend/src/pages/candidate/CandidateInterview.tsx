@@ -25,14 +25,14 @@ function Shell({ children, immersive = false }: { children: React.ReactNode; imm
     <div
       className={
         immersive
-          ? 'flex min-h-screen items-stretch justify-center bg-slate-950 p-3 sm:p-4'
+          ? 'flex h-screen overflow-hidden items-stretch justify-center bg-slate-950 p-3 sm:p-4'
           : 'flex min-h-screen items-center justify-center bg-background p-4 sm:p-6'
       }
     >
       <div
         className={
           immersive
-            ? 'flex w-full max-w-[1600px] flex-col items-stretch gap-4'
+            ? 'flex h-full w-full max-w-[1600px] flex-col items-stretch gap-4'
             : 'flex w-full max-w-7xl flex-col items-center gap-6'
         }
       >
