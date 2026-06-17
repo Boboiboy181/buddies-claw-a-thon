@@ -132,13 +132,22 @@ Full list in [`apps/backend/.env.example`](./apps/backend/.env.example). Key one
 | `REDIS_HOST` / `REDIS_PORT` | ✅ | Redis for BullMQ |
 | `JWT_SECRET` / `JWT_EXPIRES_IN` | ✅ | Auth token signing |
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | ✅ | OpenAI-compatible LLM (question + report generation) |
-| `TTS_MODEL` / `STT_MODEL` / `STT_BASE_URL` / `TTS_VOICE` | ◻︎ | Speech synthesis / transcription; falls back to direct OpenAI |
+| `TTS_PROVIDER` / `STT_PROVIDER` | ◻︎ | Force a speech provider: `openai`, `elevenlabs`, `agentbase`, `edgetts` (empty = auto-select) |
+| `TTS_MODEL` / `STT_MODEL` / `STT_BASE_URL` / `TTS_VOICE` | ◻︎ | AgentBase speech synthesis / transcription; falls back to direct OpenAI |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | ◻︎ | Legacy direct OpenAI fallback |
+| `OPENAI_TTS_MODEL` / `OPENAI_TTS_VOICE` / `OPENAI_TTS_INSTRUCTIONS` / `OPENAI_STT_MODEL` | ◻︎ | Direct-OpenAI speech tuning (used when provider is `openai`) |
 | `AWS_S3_BUCKET` / `AWS_S3_ENDPOINT` / `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | ✅ | Object storage (set endpoint to MinIO in dev) |
 | `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` | ◻︎ | Preferred video provider |
+| `LIVEKIT_EGRESS_S3_*` | ◻︎ | Recording storage — must be publicly reachable (not local MinIO) |
 | `DAILY_API_KEY` / `DAILY_API_URL` | ◻︎ | Video fallback |
+| `RESEND_API_KEY` / `MAIL_FROM` / `INVITE_EXPIRY_DAYS` | ◻︎ | Email invites (logged, not sent, when key is empty) |
+| `TAVILY_API_KEY` | ◻︎ | Web scraping for JD URL import |
+| `AGENT_LANGUAGE` / `INTERVIEW_MAX_FOLLOWUPS` | ◻︎ | Interview agent language + improvised follow-up count |
 | `FRONTEND_URL` | ✅ | CORS allowlist origin |
 | `PORT` | ◻︎ | Backend port (default 3001) |
+
+> Deploying to **AgentBase**? Use [`.env.agentbase.example`](./.env.agentbase.example) as the
+> template for the combined-container runtime (`GREENNODE_*` vars are auto-injected — don't set them).
 
 ---
 
