@@ -17,7 +17,7 @@ export interface InterviewSocketHandlers {
   onAgentSpeak?: (e: AgentSpeakEvent) => void;
   onStartListening?: (e: StartListeningEvent) => void;
   onInterviewCompleted?: () => void;
-  onError?: (e: { message: string }) => void;
+  onError?: (e: { message: string; status?: number }) => void;
 }
 
 /**

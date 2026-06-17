@@ -41,6 +41,10 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
   const [micLevel, setMicLevel] = useState(0);
   const [elapsed, setElapsed] = useState(0);
 
+  // Holds a specific backend error (e.g. model 429) so the failed screen can show
+  // it instead of the generic fallback message.
+  const errorMessageRef = useRef<string | null>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const recorderRef = useRef<AudioRecorder | null>(null);
@@ -187,7 +191,9 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
       if (typeof e.questionIndex === 'number') setQuestionIndex(e.questionIndex);
       if (e.state === 'FAILED') {
         setPhase('failed');
-        setAgentText('Buổi phỏng vấn gặp sự cố. HR sẽ liên hệ lại với bạn.');
+        setAgentText(
+          errorMessageRef.current ?? 'Buổi phỏng vấn gặp sự cố. HR sẽ liên hệ lại với bạn.',
+        );
       }
       if (e.state === 'REPORT_GENERATING' || e.state === 'COMPLETED') setPhase('waiting');
     },
@@ -200,7 +206,13 @@ export function InterviewRoom({ interview, onCompleted }: Props) {
         onCompleted();
       }
     },
-    onError: ({ message }) => toast.error(message),
+    onError: ({ message }) => {
+      // Show the real backend error (e.g. model 429 rate limit) directly to the candidate.
+      errorMessageRef.current = message;
+      toast.error(message);
+      setPhase('failed');
+      setAgentText(message);
+    },
   });
 
   // Mount: mic recorder + video (LiveKit/Daily room if available, else local preview) + kick off the agent

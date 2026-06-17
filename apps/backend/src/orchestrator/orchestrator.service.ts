@@ -774,7 +774,13 @@ export class InterviewOrchestratorService {
     try {
       return await fn();
     } catch (err: any) {
-      this.logger.error(`Interview ${interviewId} failed: ${err.message}`, err.stack);
+      // Surface the model status code (e.g. 429 rate limit) and its real message
+      // straight to the frontend instead of a generic "Interview failed".
+      const status: number | undefined = err?.status ?? err?.response?.status ?? err?.statusCode;
+      const detail: string =
+        err?.response?.data?.error?.message ?? err?.error?.message ?? err?.message ?? 'Interview failed';
+      const message = status === 429 ? `Model rate limited (429): ${detail}` : detail;
+      this.logger.error(`Interview ${interviewId} failed (status=${status ?? 'n/a'}): ${detail}`, err.stack);
       await this.prisma.interview
         .update({
           where: { id: interviewId },
@@ -782,7 +788,7 @@ export class InterviewOrchestratorService {
         })
         .catch(() => undefined);
       this.gateway.emitStateChange(interviewId, $Enums.InterviewState.FAILED);
-      this.gateway.emitError(interviewId, err.message ?? 'Interview failed');
+      this.gateway.emitError(interviewId, message, status);
       throw err;
     }
   }

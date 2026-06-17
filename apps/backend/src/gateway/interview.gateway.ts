@@ -68,7 +68,7 @@ export class InterviewGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server.to(`interview:${interviewId}`).emit('interview_completed', { interviewId });
   }
 
-  emitError(interviewId: string, message: string) {
-    this.server.to(`interview:${interviewId}`).emit('error', { message });
+  emitError(interviewId: string, message: string, status?: number) {
+    this.server.to(`interview:${interviewId}`).emit('error', { message, status });
   }
 }
