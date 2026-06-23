@@ -43,3 +43,4 @@ apps/backend/package-lock.json
 server_temp.md
 vStorage_s3sdk.js
 vserver-stores.yml
+.env.agentbase.bak

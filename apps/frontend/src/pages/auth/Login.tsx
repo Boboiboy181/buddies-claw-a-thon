@@ -4,17 +4,39 @@ import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Copy, Eye, EyeOff, KeyRound, ShieldCheck, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const DEMO_CREDENTIALS = { email: 'hr@demo.com', password: 'demo1234' };
+
 export default function Login() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit } = useForm<{ email: string; password: string }>();
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState<'email' | 'password' | null>(null);
+  const { register, handleSubmit, setValue } = useForm<{ email: string; password: string }>({
+    defaultValues: DEMO_CREDENTIALS,
+  });
+
+  const copyToClipboard = async (field: 'email' | 'password', value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(field);
+      setTimeout(() => setCopied((c) => (c === field ? null : c)), 1500);
+    } catch {
+      toast.error('Could not copy to clipboard');
+    }
+  };
+
+  const fillCredentials = () => {
+    setValue('email', DEMO_CREDENTIALS.email, { shouldValidate: true });
+    setValue('password', DEMO_CREDENTIALS.password, { shouldValidate: true });
+    toast.success('Demo credentials filled');
+  };
 
   const onSubmit = async (data: { email: string; password: string }) => {
     setLoading(true);
@@ -88,19 +110,74 @@ export default function Login() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  {...register('password', { required: true })}
-                  placeholder="Password"
-                  className="h-11 rounded-lg"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    {...register('password', { required: true })}
+                    placeholder="Password"
+                    className="h-11 rounded-lg pr-11"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" disabled={loading} size="lg" className="h-11 w-full rounded-lg text-sm">
                 {loading ? 'Signing in...' : 'Sign in'}
                 {!loading && <ArrowRight data-icon="inline-end" />}
               </Button>
             </form>
+
+            <div className="mt-5 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="flex items-center gap-2 font-medium text-foreground">
+                  <KeyRound className="size-4 text-primary" />
+                  Demo credentials
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={fillCredentials}
+                  className="h-7 gap-1.5 rounded-md px-2.5 text-xs"
+                >
+                  <Wand2 className="size-3.5" />
+                  Fill form
+                </Button>
+              </div>
+              <dl className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1.5 text-muted-foreground">
+                {([
+                  ['email', 'Email', DEMO_CREDENTIALS.email],
+                  ['password', 'Password', DEMO_CREDENTIALS.password],
+                ] as const).map(([field, label, value]) => (
+                  <div key={field} className="contents">
+                    <dt className="font-medium text-foreground">{label}</dt>
+                    <dd className="truncate font-mono">{value}</dd>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(field, value)}
+                      aria-label={`Copy ${label.toLowerCase()}`}
+                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      {copied === field ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Public preview — prefilled by default. Use Fill form or copy if you cleared them.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
